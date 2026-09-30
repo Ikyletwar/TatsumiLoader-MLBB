@@ -84,6 +84,7 @@
   X("spellX", spellX) \
   X("spellY", spellY) \
   X("objectiveLowPct", objectiveLowPct) \
+  X("uiUserScale", uiUserScale) \
   X("retriNearbyRange", retriNearbyRange)
 
 #define TATSUMI_INT_SETTINGS                                                   \

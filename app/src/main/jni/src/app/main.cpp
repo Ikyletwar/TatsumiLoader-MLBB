@@ -65,6 +65,7 @@ bool is_root_mode = true;
 bool main_thread_flag = true;
 static bool show_menu = true;
 int uiFpsCap = 60;
+float uiUserScale = 1.15f;
 std::string g_package_name = xorstr_("com.mobile.legends");
 
 
@@ -3061,12 +3062,12 @@ void Layout_tick_UI() {
   
   ImGuiStyle& style = ImGui::GetStyle();
   ImGui::StyleColorsDark();
-  style.WindowPadding = ImVec2(20, 20);
+  style.WindowPadding = ImVec2(22, 22);
   style.WindowRounding = 12.0f;
   style.ChildRounding = 8.0f;
-  style.FramePadding = ImVec2(14, 10);
+  style.FramePadding = ImVec2(16, 12);
   style.FrameRounding = 10.0f;
-  style.ItemSpacing = ImVec2(15, 12);
+  style.ItemSpacing = ImVec2(16, 14);
   style.ItemInnerSpacing = ImVec2(10, 8);
   style.IndentSpacing = 25.0f;
   style.ScrollbarSize = 32.0f;
@@ -3139,7 +3140,7 @@ void Layout_tick_UI() {
     float uiScale = io.DisplaySize.y > 0 ? io.DisplaySize.y / 1080.0f : 1.0f;
     if (uiScale < 0.8f) uiScale = 0.8f;
     if (uiScale > 1.4f) uiScale = 1.4f;
-    io.FontGlobalScale = uiScale;
+    io.FontGlobalScale = uiScale * uiUserScale;
   }
   if (is_root_mode) {
     DrawFloatingLogo();
@@ -3401,6 +3402,7 @@ void Layout_tick_UI() {
                 if (ImGui::Button(xorstr_("LOAD SETTINGS"), ImVec2(-1, 0))) LoadTatsumiSettings();
               }
               if (ImGui::CollapsingHeader(xorstr_("SYSTEM"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::SliderFloat(xorstr_("UI Scale"), &uiUserScale, 0.8f, 1.6f);
                 static float opacity = 1.0f;
                 {
                   const char* fpsItems[] = { "30 FPS", "60 FPS", "90 FPS", "120 FPS" };

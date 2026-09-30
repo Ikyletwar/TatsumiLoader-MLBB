@@ -45,7 +45,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
 
         for (const auto &player : sortedPlayers) {
             if (!player.IsValid) continue;
-            ImGui::TableNextRow(ImGuiTableRowFlags_None, 32.0f);
+            ImGui::TableNextRow(ImGuiTableRowFlags_None, 46.0f);
 
             // 1. Nickname
             if (ImGui::TableSetColumnIndex(0)) {
@@ -55,7 +55,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
             // 2. Hero Icon
             if (ImGui::TableSetColumnIndex(1)) {
                 ImTextureID tex = GetHeroTexture(player.HeroId);
-                if (tex) ImGui::Image(tex, ImVec2(24, 24));
+                if (tex) ImGui::Image(tex, ImVec2(34, 34));
                 else ImGui::Text("?");
             }
 
@@ -74,7 +74,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
                     else if (rText.find("Immortal") != std::string::npos) rankType = "immortal";
 
                     ImTextureID rIcon = GetRankIconTexture(rankType);
-                    if (rIcon) ImGui::Image(rIcon, ImVec2(24, 24));
+                    if (rIcon) ImGui::Image(rIcon, ImVec2(34, 34));
 
                     size_t lastStar = rText.find_last_of(' ');
                     if (lastStar != std::string::npos) {
@@ -89,7 +89,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
                     for(auto &c : lowerName) c = (char)tolower(c);
 
                     ImTextureID rIcon = GetRankIconTexture(lowerName);
-                    if (rIcon) ImGui::Image(rIcon, ImVec2(24, 24));
+                    if (rIcon) ImGui::Image(rIcon, ImVec2(34, 34));
                     ImGui::SameLine(0, 8);
                     ImGui::Text("%s", romawi.c_str());
 
@@ -98,7 +98,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
                         ImGui::SameLine(0, 12);
                         float currentY = ImGui::GetCursorPosY();
                         ImGui::SetCursorPosY(currentY + 4.0f);
-                        ImGui::Image(sIcon, ImVec2(16, 16));
+                        ImGui::Image(sIcon, ImVec2(22, 22));
                         ImGui::SetCursorPosY(currentY);
                         ImGui::SameLine(0, 4);
                         ImGui::Text("%s", starCount.c_str());
@@ -109,7 +109,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
             // 5. Spell
             if (ImGui::TableSetColumnIndex(4)) {
                 ImTextureID sTex = GetSpellTexture(player.SpellId);
-                if (sTex) ImGui::Image(sTex, ImVec2(24, 24));
+                if (sTex) ImGui::Image(sTex, ImVec2(34, 34));
                 else ImGui::TextDisabled("-");
             }
 
@@ -141,7 +141,7 @@ static void RenderPlayerTable(const char *label, const std::vector<CachedRoomPla
                     for (int heroId : player.AddHeroIds) {
                         ImTextureID tex = GetHeroTexture(heroId);
                         if (tex) {
-                            ImGui::Image(tex, ImVec2(22, 22));
+                            ImGui::Image(tex, ImVec2(30, 30));
                             if (++count >= 3) break;
                             ImGui::SameLine(0, 2);
                         }
@@ -160,13 +160,13 @@ void RenderRoomPlayerInfoImGui() {
     ImGui::Checkbox(oxorany("Auto DOD (Risk)"), &enableDOD);
     ImGui::Separator();
 
-    if (ImGui::Button("Blue Team", ImVec2(windowWidth * 0.45f, 40))) currentTab = 0;
+    if (ImGui::Button("Blue Team", ImVec2(windowWidth * 0.45f, 58))) currentTab = 0;
     ImGui::SameLine();
-    if (ImGui::Button("Red Team", ImVec2(windowWidth * 0.45f, 40))) currentTab = 1;
+    if (ImGui::Button("Red Team", ImVec2(windowWidth * 0.45f, 58))) currentTab = 1;
 
     ImGui::Spacing();
 
-    if (ImGui::BeginChild("##TableScrollArea", ImVec2(0, 350.0f), true)) {
+    if (ImGui::BeginChild("##TableScrollArea", ImVec2(0, ImGui::GetContentRegionAvail().y - 8), true)) {
         std::lock_guard<std::mutex> lock(g_RoomDataMutex);
         if (!g_CachedRoomData.HasData) {
             ImGui::Text("Waiting for Lobby data...");
