@@ -44,6 +44,7 @@
   X("autoSpellExecute", autoSpellExecute) \
   X("drawObjectiveAlert", drawObjectiveAlert) \
   X("retriNearbyOnly", retriNearbyOnly) \
+  X("drawMonsterMinimap", drawMonsterMinimap) \
   X("useAdGuardDns", useAdGuardDns)
 
 #define TATSUMI_FLOAT_SETTINGS                                                 \

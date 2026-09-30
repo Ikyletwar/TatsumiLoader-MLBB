@@ -142,7 +142,8 @@ int MinimapPos = 76;
 int MinimapPosY = 76;
 bool MinimapIcon = true;
 bool MinimapIconBuff = false;
-bool MinimapIconLordTurtle = false;
+bool MinimapIconLordTurtle = true;
+bool drawMonsterMinimap = true;
 
 bool HideLine = false;
 float RadiusCir = 50.0f;
@@ -1682,6 +1683,8 @@ Vector2 WorldToMinimap(Vector3 HeroPosition) {
 void DrawMinimapESP(ImDrawList *draw) {
   if (!MinimapIcon)
     return;
+  if (!is_attached || libbase == 0)
+    return;
   long a1 = ReadPtr(libbase + OFF_BM(BasePtr));
   if (!a1)
     return;
@@ -1767,11 +1770,12 @@ void DrawMinimapESP(ImDrawList *draw) {
         }
 
         
-        if (mType == 2 || mType == 5) {
-          if (bMonster(mHeroID) || MinimapIconBuff) {
-            DrawHeroIcon(draw, ImVec2(minimapPos.X, minimapPos.Y), mHeroID, hp, maxHp,
-                         g_MinimapMonsterSize / 2.0f, false, 0, 0);
-          }
+        if ((mType == 2 || mType == 5) && drawMonsterMinimap) {
+          bool isObjective = (mHeroID == 2002 || mHeroID == 2003 || mHeroID == 2110);
+          if (isObjective && !MinimapIconLordTurtle) continue;
+          if (!isObjective && !(bMonster(mHeroID) || MinimapIconBuff)) continue;
+          DrawHeroIcon(draw, ImVec2(minimapPos.X, minimapPos.Y), mHeroID, hp, maxHp,
+                       g_MinimapMonsterSize / 2.0f, false, 0, 0);
         }
       }
     }
@@ -3266,6 +3270,8 @@ void Layout_tick_UI() {
               }
               if (ImGui::CollapsingHeader(xorstr_("MINIMAP"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Minimap"), &MinimapIcon);
+                ImGui::CustomCheckbox(xorstr_("Show Monsters"), &drawMonsterMinimap);
+                ImGui::CustomCheckbox(xorstr_("Show Lord/Turtle"), &MinimapIconLordTurtle);
                 ImGui::CustomCheckbox(xorstr_("Hide Minimap Line"), &HideLine);
                 ImGui::CustomCheckbox(xorstr_("Show All Monsters"), &MinimapIconBuff);
                 ImGui::CustomCheckbox(xorstr_("Show Minion Dot"), &drawMinionMinimap);
@@ -3415,7 +3421,8 @@ void Layout_tick_UI() {
   abs_ScreenX = (int)io.DisplaySize.x;
   abs_ScreenY = (int)io.DisplaySize.y;
 
-  if (MinimapIcon) {
+  static int mmFrame = 0;
+  if (MinimapIcon && ((mmFrame++ & 1) == 0)) {
     DrawMinimapESP(ImGui::GetForegroundDrawList());
   }
 
