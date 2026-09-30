@@ -396,6 +396,7 @@ Buat backup tiap habis rebuild berhasil.
 - **2026-09-30** — Tab INFO sosmed IG/TikTok; Telegram device report.
 - **2026-09-30** — Push GitHub (LFS) + public.
 - **2026-09-30** — Tab AUTO (retri+skill+spell gabung), auto execute, objective alert akurat (fix uint64, % besar, border kedip, ID 2110), hapus tab RETRI/SKILL.
+- **2026-09-30** — Fix lag: worker multi-cadence (fast 5ms/monster 50ms/login 5s), hapus retri UI-thread (single source tap), DNS AdGuard jadi toggle default-off, deploy v1.1.0+ ke HP.
 
 ---
 

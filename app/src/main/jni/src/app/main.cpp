@@ -150,6 +150,7 @@ float g_HeroIconSize = 28.0f;
 float g_MonsterIconSize = 22.0f;
 bool is_attached = false;
 bool EnableDrone = false;
+bool useAdGuardDns = false;
 bool enableDOD = false;
 
 
@@ -953,77 +954,6 @@ int CalculateRetriDamage(int m_Level) {
   }
 }
 
-void ProcessAutoRetribution(uintptr_t selfp, long monsterListPtr,
-                            int stopMonster) {
-  if (!autoRetribution)
-    return;
-
-  
-  int myLevel = Read<int>(selfp + OFF_SE(Level));
-  int retriDmg = CalculateRetriDamage(myLevel) + (int)retriEarlyMargin;
-  Vector3 myPos;
-  vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos));
-
-  float closestDist = 99999.0f;
-  uintptr_t closestMonsterAddr = 0;
-  int closestMonsterHP = 0;
-
-  
-  for (int i = 0; i < stopMonster; i++) {
-    auto Objaddr = ReadPtr(monsterListPtr + (i << 3));
-    if (!Objaddr || Read<bool>(Objaddr + OFF_SE(bDeath)))
-      continue;
-
-    auto mHeroID = Read<int>(Objaddr + OFF_SE(HeroID));
-    int Health = Read<int>(Objaddr + OFF_SE(Hp));
-    Vector3 monPos;
-    vm_readv(Objaddr + OFF_SE(vCachePosition), &monPos, sizeof(monPos));
-    float dist = Vector3::Distance(myPos, monPos);
-
-    
-    bool isTarget = false;
-    if (AutoRetributionLord && mHeroID == 2002)
-      isTarget = true;
-    else if (AutoRetributionTurtle && (mHeroID == 2003 || mHeroID == 2110))
-      isTarget = true;
-    else if (AutoRetributionBlue && (mHeroID == 2005 || mHeroID == 2221))
-      isTarget = true;
-    else if (AutoRetributionLito && mHeroID == 2056)
-      isTarget = true;
-    else if (AutoRetributionCrab && (mHeroID == 2223 || mHeroID == 2222))
-      isTarget = true;
-    else if (AutoRetributionRed && (mHeroID == 2004 || mHeroID == 2220))
-      isTarget = true;
-
-    if (isTarget && dist < closestDist) {
-      closestDist = dist;
-      closestMonsterAddr = Objaddr;
-      closestMonsterHP = Health;
-    }
-  }
-
-  
-  if (closestMonsterAddr != 0 && closestDist <= retriMaxRange) {
-    if (closestMonsterHP > 0 && closestMonsterHP <= retriDmg) {
-      static auto lastTap = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
-      auto now = std::chrono::steady_clock::now();
-      long sinceTap = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastTap).count();
-      if (sinceTap >= retriSpamMs) {
-        Touch_Tap((int)retriTouchX, (int)retriTouchY);
-        if (retriDoubleTap) Touch_Tap((int)retriTouchX, (int)retriTouchY);
-        lastTap = now;
-      }
-    }
-  }
-
-  
-  if (showRetriCircle) {
-    ImGui::GetBackgroundDrawList()->AddCircleFilled(
-            ImVec2(retriTouchX, retriTouchY), 18.0f, IM_COL32(255, 255, 255, 180),
-            16);
-  }
-}
-
 extern uintptr_t Oneself;
 // FAST PATH: jalan di game_worker tiap ~1ms, tidak nunggu FPS overlay.
 void FastAutoRetri() {
@@ -1387,7 +1317,7 @@ void DrawMonster(ImDrawList *Draw) {
           OFF_BM(ListArrayOffset);
   uint stop_monster =
           Read<uint>(ReadPtr(a32 + OFF_BM(ShowMonsters)) + OFF_BM(ListCountOffset));
-  ProcessAutoRetribution(selfp, monster, stop_monster);
+  // (dihapus, diganti FastAutoRetri/FastAutoSpell di game_worker 5ms)
 
   for (int i = 0; i < stop_player; i++) {
     auto Objaddr = ReadPtr(player + ((i << 3) / 1));
@@ -3439,6 +3369,7 @@ void Layout_tick_UI() {
                 if (ImGui::SliderFloat(xorstr_("UI Opacity"), &opacity, 0.1f, 1.0f)) {
                   ImGui::GetStyle().Alpha = opacity;
                 }
+                ImGui::CustomCheckbox(xorstr_("AdGuard DNS"), &useAdGuardDns);
                 if (ImGui::Button(xorstr_("EXIT CHEAT"), ImVec2(-1, 0))) {
                   main_thread_flag = false;
                 }
@@ -3494,8 +3425,15 @@ __attribute__((visibility("default"))) void *game_worker(void *) {
     auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
             currentTime - lastUpdate)
             .count();
-    if (elapsedMs >= 1) {
-      MonsterRetribution();
+    static auto lastFast = lastUpdate;
+      static auto lastMonster = lastUpdate;
+      static auto lastLogin = lastUpdate - std::chrono::seconds(5);
+      long msFast = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastFast).count();
+      long msMon = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastMonster).count();
+      long msLog = std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - lastLogin).count();
+      if (elapsedMs >= 1 && (msFast >= 5 || msMon >= 50 || msLog >= 5000)) {
+      if (msMon >= 50) { MonsterRetribution(); lastMonster = currentTime; }
+      if (msFast >= 5) {
       FastAutoRetri();
       FastAutoSpell(); 
       
@@ -3522,14 +3460,15 @@ __attribute__((visibility("default"))) void *game_worker(void *) {
             }
 
             if (AutoAim::enabled && !swordNearby) {
-              UpdateAutoAim(selfAddr, a32, libbase, elapsedMs / 1000.0f);
+              UpdateAutoAim(selfAddr, a32, libbase, (float)msFast / 1000.0f);
             }
 
           }
         }
       }
-
-      
+      lastFast = currentTime;
+      }
+      if (msLog >= 5000) {
       LoginServerData newData = ReadLoginServerInfo(libbase);
       if (newData.IsValid) {
         if (g_LoginServerCache.Nickname.empty()) g_LoginServerCache.Nickname = newData.Nickname;
@@ -3537,6 +3476,8 @@ __attribute__((visibility("default"))) void *game_worker(void *) {
         g_LoginServerCache.ClientRealVersion = newData.ClientRealVersion;
         g_LoginServerCache.RegionId = newData.RegionId;
         
+      }
+      lastLogin = currentTime;
       }
 
       lastUpdate = currentTime;
@@ -3597,8 +3538,10 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
 
   
 
-  system(xorstr_("settings put global private_dns_mode hostname"));
-  system(xorstr_("settings put global private_dns_specifier dns.adguard.com"));
+  if (useAdGuardDns) {
+    system(xorstr_("settings put global private_dns_mode hostname"));
+    system(xorstr_("settings put global private_dns_specifier dns.adguard.com"));
+  }
 
   
   screen_config();
@@ -3708,7 +3651,8 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
 
 
 
-  system(xorstr_("settings put global private_dns_mode off"));
+  if (useAdGuardDns)
+    system(xorstr_("settings put global private_dns_mode off"));
 
   curl_global_cleanup();
   shutdown();

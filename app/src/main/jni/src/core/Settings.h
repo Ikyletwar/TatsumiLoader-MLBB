@@ -42,7 +42,8 @@
   X("Alert_ShowHPText", Alert_ShowHPText)                                       \
   X("autoSwordLing", autoSwordLing) \
   X("autoSpellExecute", autoSpellExecute) \
-  X("drawObjectiveAlert", drawObjectiveAlert)
+  X("drawObjectiveAlert", drawObjectiveAlert) \
+  X("useAdGuardDns", useAdGuardDns)
 
 #define TATSUMI_FLOAT_SETTINGS                                                 \
   X("FieldView", FieldView)                                                     \
