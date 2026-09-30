@@ -3444,8 +3444,7 @@ void Layout_tick_UI() {
   abs_ScreenX = (int)io.DisplaySize.x;
   abs_ScreenY = (int)io.DisplaySize.y;
 
-  static int mmFrame = 0;
-  if (MinimapIcon && ((mmFrame++ & 1) == 0)) {
+  if (MinimapIcon) {
     DrawMinimapESP(ImGui::GetForegroundDrawList());
   }
 
