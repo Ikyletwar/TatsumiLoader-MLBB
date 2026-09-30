@@ -932,13 +932,15 @@ void DrawCircularIndicator(ImDrawList *Draw, ImVec2 pos, float size, int cdVal, 
 
 inline float DrawCooldownHorizontal(ImDrawList *Draw, float StartX, float BaselineY, const CoolDownData &cd, int HeroID, int hp, int maxHp, int level, bool showSkills, bool showHero, bool showSpell) {
   float size = Cooldown_Size;
+  float hSize = g_HeroIconSize;
+  float stepHero = (hSize > size ? hSize : size) * 2.3f;
   float spacing = size * 2.3f;
-  float currentX = StartX + size;
+  float currentX = StartX + (hSize > size ? hSize : size);
 
-  
+
   if (showHero) {
-    DrawHeroIcon(Draw, ImVec2(currentX, BaselineY - size - 2.0f), HeroID, hp, maxHp, size, true, level);
-    currentX += spacing;
+    DrawHeroIcon(Draw, ImVec2(currentX, BaselineY - hSize - 2.0f), HeroID, hp, maxHp, hSize, true, level);
+    currentX += stepHero;
   }
 
   
