@@ -19,6 +19,8 @@
 #include <dirent.h>
 #include <exception>
 #include <fcntl.h>
+#include <signal.h>
+#include <sys/file.h>
 #include <fstream>
 #include <functional>
 #include <iostream>
@@ -3525,8 +3527,43 @@ __attribute__((visibility("default"))) void *game_worker(void *) {
 
 #include <sys/wait.h>
 
+static int g_lockFd = -1;
+static bool AcquireSingleInstance() {
+  // Bunuh sisa binary lama (nama beda, aman dari self-kill).
+  system("pkill -9 -f 'Starcool' >/dev/null 2>&1");
+  // Bunuh duplikat diri sendiri (lewati PID sendiri).
+  {
+    char cmd[128];
+    snprintf(cmd, sizeof(cmd), "pidof TatsumiLoader");
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+      char buf[512] = {0};
+      size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+      (void)n;
+      pclose(fp);
+      pid_t self = getpid();
+      char *tok = strtok(buf, " \t\r\n");
+      while (tok) {
+        pid_t p = (pid_t)strtoul(tok, nullptr, 10);
+        if (p > 0 && p != self) kill(p, SIGKILL);
+        tok = strtok(nullptr, " \t\r\n");
+      }
+      usleep(300000);
+    }
+  }
+  // Kunci file: instans kedua langsung keluar dengan pesan.
+  g_lockFd = open("/data/local/tmp/TatsumiLoader.lock", O_RDWR | O_CREAT, 0600);
+  if (g_lockFd < 0) return true;
+  if (flock(g_lockFd, LOCK_EX | LOCK_NB) != 0) {
+    printf("TatsumiLoader sudah jalan (lock aktif). Keluar.\n");
+    fflush(stdout);
+    return false;
+  }
+  return true;
+}
+
 __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
-  
+  if (!AcquireSingleInstance()) return 1;
   pid_t watchdog_pid = fork();
   if (watchdog_pid < 0) {
     
