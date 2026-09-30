@@ -1,0 +1,5 @@
+app/src/main/obj/
+app/src/main/libs/
+*.o
+*.7z
+.DS_Store
