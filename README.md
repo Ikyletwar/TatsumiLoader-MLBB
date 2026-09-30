@@ -395,6 +395,7 @@ Buat backup tiap habis rebuild berhasil.
   Settings table, DeviceReport; auto-launch MLBB + PID polling.
 - **2026-09-30** — Tab INFO sosmed IG/TikTok; Telegram device report.
 - **2026-09-30** — Push GitHub (LFS) + public.
+- **2026-09-30** — Tab AUTO (retri+skill+spell gabung), auto execute, objective alert akurat (fix uint64, % besar, border kedip, ID 2110), hapus tab RETRI/SKILL.
 
 ---
 

@@ -324,6 +324,14 @@ float retriEarlyMargin = 180.0f;   // tap lebih awal utk kompensasi network/tick
 float retriMaxRange = 8.5f;        // sedikit longgar dari 8.0 bawaan game
 int retriSpamMs = 80;              // jeda minimal antar tap (anti flood, tapi retry cepat)
 bool retriDoubleTap = true;        // tap 2x per trigger biar tidak miss
+bool autoSpellExecute = false;
+float spellExecPct = 12.0f;
+float spellRange = 5.0f;
+float spellX = 1700.0f;
+float spellY = 850.0f;
+int spellSpamMs = 1000;
+bool drawObjectiveAlert = true;
+float objectiveLowPct = 20.0f;
 void DrawVerticalHealthBar(ImDrawList *Draw, float X, float Y, float Height,
                            float Health, float MaxHealth,
                            bool ShowText = false) {
@@ -467,8 +475,13 @@ void DrawGlobalWarning(ImDrawList *draw, const char *label, float hp,
   
   draw->AddRectFilled(boxMin, boxMax, IM_COL32(15, 15, 15, 230), 12.0f * s);
   
-  draw->AddRect(boxMin, boxMax, IM_COL32(230, 230, 100, 255), 12.0f * s, 0,
-                2.0f * s);
+  float warnPct = (maxHp > 0) ? hp / maxHp : 1.0f;
+  bool warnLow = (warnPct * 100.0f) <= objectiveLowPct;
+  bool warnBlink = ((std::clock() / (CLOCKS_PER_SEC / 2)) % 2) == 0;
+  ImU32 warnBorder = warnLow ? (warnBlink ? IM_COL32(255, 0, 0, 255) : IM_COL32(120, 0, 0, 255))
+                             : IM_COL32(230, 230, 100, 255);
+  draw->AddRect(boxMin, boxMax, warnBorder, 12.0f * s, 0,
+                (warnLow ? 4.0f : 2.0f) * s);
 
   
   ImVec2 labelPos(centerX - labelSize.x * s * 0.5f, boxMin.y + 12.0f * s);
@@ -492,6 +505,14 @@ void DrawGlobalWarning(ImDrawList *draw, const char *label, float hp,
   }
 
   
+  {
+    char pctBuf[16];
+    snprintf(pctBuf, sizeof(pctBuf), "%d%%", (int)(warnPct * 100.0f));
+    ImVec2 pctSize = ImGui::CalcTextSize(pctBuf);
+    ImVec2 pctPos(centerX - pctSize.x * s * 0.9f, boxMin.y - pctSize.y * s * 1.1f);
+    draw->AddText(NULL, 30.0f * s, pctPos,
+                  warnLow ? IM_COL32(255, 50, 50, 255) : IM_COL32(255, 255, 255, 255), pctBuf);
+  }
   if (Alert_ShowHPText) {
     char hpBuf[64];
     snprintf(hpBuf, sizeof(hpBuf), "%.0f / %.0f", hp, maxHp);
@@ -1068,6 +1089,47 @@ void FastAutoRetri() {
     }
   }
 }
+void FastAutoSpell() {
+  if (!autoSpellExecute || !is_attached || libbase == 0 || Oneself == 0)
+    return;
+  long a1 = ReadPtr(libbase + OFF_BM(BasePtr));
+  if (!a1) return;
+  long a2 = ReadPtr(a1 + OFF_BM(PtrChain1));
+  if (!a2) return;
+  long a32 = ReadPtr((a2 << 1) >> 1);
+  if (!a32) return;
+  uintptr_t selfp = ReadPtr(a32 + OFF_BM(LocalPlayerShow));
+  if (!selfp) return;
+  long playerBase = ReadPtr(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListDataOffset)) +
+                    OFF_BM(ListArrayOffset);
+  int playerCount = Read<int>(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListCountOffset));
+  if (playerCount <= 0 || playerCount > 40) return;
+  Vector3 myPos;
+  if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos))) return;
+  static auto lastSpellTap = std::chrono::steady_clock::now() - std::chrono::milliseconds(5000);
+  auto now = std::chrono::steady_clock::now();
+  long sinceTap = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastSpellTap).count();
+  if (sinceTap < spellSpamMs) return;
+  for (int i = 0; i < playerCount; i++) {
+    auto Objaddr = ReadPtr(playerBase + (i << 3));
+    if (!Objaddr) continue;
+    if (Read<bool>(Objaddr + OFF_SE(bSameCampType))) continue;
+    if (Read<bool>(Objaddr + OFF_SE(bDeath))) continue;
+    int hp = Read<int>(Objaddr + OFF_SE(Hp));
+    int maxHp = Read<int>(Objaddr + OFF_SE(HpMax));
+    if (hp <= 0 || maxHp <= 0) continue;
+    float pct = 100.0f * (float)hp / (float)maxHp;
+    if (pct > spellExecPct) continue;
+    Vector3 epos;
+    if (!vm_readv(Objaddr + OFF_SE(vCachePosition), &epos, sizeof(epos))) continue;
+    if (Vector3::Distance(myPos, epos) > spellRange) continue;
+    Touch_Tap((int)spellX, (int)spellY);
+    Touch_Tap((int)spellX, (int)spellY);
+    lastSpellTap = now;
+    break;
+  }
+}
+
 void DrawNeedleLine(ImDrawList* draw, ImVec2 p1, ImVec2 p2, ImU32 col, float thickness) {
   ImVec2 dir = { p2.x - p1.x, p2.y - p1.y };
   float length = sqrtf(dir.x * dir.x + dir.y * dir.y);
@@ -1343,7 +1405,7 @@ void DrawMonster(ImDrawList *Draw) {
     int Health = Read<int>(Objaddr + OFF_SE(Hp));
     if (Health <= 0)
       continue;
-    int maxHealth = Read<uint64_t>(Objaddr + OFF_SE(HpMax));
+    int maxHealth = Read<int>(Objaddr + OFF_SE(HpMax));
     if (maxHealth <= 0)
       continue;
     int level = Read<int>(Objaddr + OFF_SE(Level));
@@ -1438,7 +1500,7 @@ void DrawMonster(ImDrawList *Draw) {
     int Health = Read<int>(Objaddr + OFF_SE(Hp));
     if (Health <= 0)
       continue;
-    int maxHealth = Read<uint64_t>(Objaddr + OFF_SE(HpMax));
+    int maxHealth = Read<int>(Objaddr + OFF_SE(HpMax));
     if (maxHealth <= 0)
       continue;
     Vector3 Dm;
@@ -1453,13 +1515,15 @@ void DrawMonster(ImDrawList *Draw) {
       continue;
 
     
-    if (type == 5) {
+    if (type == 5 && drawObjectiveAlert) {
+      float objPct = maxHealth > 0 ? 100.0f * (float)Health / (float)maxHealth : 100.0f;
+      bool objLow = objPct <= objectiveLowPct;
       if (mHeroID == 2002 && Health < maxHealth) {
-        DrawGlobalWarning(Draw, xorstr_("LORD ATTACKED!"), (float)Health,
+        DrawGlobalWarning(Draw, objLow ? xorstr_("LORD LOW!") : xorstr_("LORD ATTACKED!"), (float)Health,
                           (float)maxHealth);
       }
-      if (mHeroID == 2003 && Health < maxHealth) {
-        DrawGlobalWarning(Draw, xorstr_("TURTLE ATTACKED!"), (float)Health,
+      if ((mHeroID == 2003 || mHeroID == 2110) && Health < maxHealth) {
+        DrawGlobalWarning(Draw, objLow ? xorstr_("TURTLE LOW!") : xorstr_("TURTLE ATTACKED!"), (float)Health,
                           (float)maxHealth);
       }
     }
@@ -3270,7 +3334,7 @@ void Layout_tick_UI() {
               }
               ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem(xorstr_("RETRI"))) {
+            if (ImGui::BeginTabItem(xorstr_("AUTO"))) {
               if (ImGui::CollapsingHeader(xorstr_("AUTO RETRI"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Auto Retri"), &autoRetribution);
                 ImGui::CustomCheckbox(xorstr_("Show Circle"), &showRetriCircle);
@@ -3289,14 +3353,25 @@ void Layout_tick_UI() {
                 ImGui::CustomCheckbox(xorstr_("Crab"), &AutoRetributionCrab);
                 ImGui::CustomCheckbox(xorstr_("Lito"), &AutoRetributionLito);
               }
-              ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem(xorstr_("SKILL"))) {
+              if (ImGui::CollapsingHeader(xorstr_("AUTO SPELL (EXECUTE)"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Enable Auto Execute"), &autoSpellExecute);
+                if (autoSpellExecute) {
+                  ImGui::SliderFloat(xorstr_("Execute HP %"), &spellExecPct, 1.0f, 40.0f);
+                  ImGui::SliderFloat(xorstr_("Execute Range"), &spellRange, 1.0f, 10.0f);
+                  ImGui::SliderFloat(xorstr_("Spell X"), &spellX, 0.0f, 3000.0f);
+                  ImGui::SliderFloat(xorstr_("Spell Y"), &spellY, 0.0f, 1500.0f);
+                  ImGui::SliderInt(xorstr_("Spell Spam Ms"), &spellSpamMs, 300, 5000);
+                }
+              }
+              if (ImGui::CollapsingHeader(xorstr_("OBJECTIVE ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
+                ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
+              }
               if (ImGui::CollapsingHeader(xorstr_("LING AUTO SWORD"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Auto Sword"), &autoSwordLing);
-                
+
                 if (autoSwordLing ) {
-                  
+
                   ImGui::SliderFloat(xorstr_("Dash Range"), &lingSwordDashRange, 1.0f, 20.0f);
                   ImGui::SliderFloat(xorstr_("Dash Delay"), &lingDashDelay, -0.1f, 1.0f);
                   ImGui::SliderFloat(xorstr_("Skill 2 X"), &lingSkill2X, 0.0f, (float)abs_ScreenX);
@@ -3421,7 +3496,8 @@ __attribute__((visibility("default"))) void *game_worker(void *) {
             .count();
     if (elapsedMs >= 1) {
       MonsterRetribution();
-      FastAutoRetri(); 
+      FastAutoRetri();
+      FastAutoSpell(); 
       
 
       if (is_attached) {

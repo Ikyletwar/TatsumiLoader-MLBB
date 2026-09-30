@@ -40,7 +40,9 @@
   X("drawMinionMinimap", drawMinionMinimap)                                     \
   X("ESP_Player_Cooldown", ESP_Player_Cooldown)                                 \
   X("Alert_ShowHPText", Alert_ShowHPText)                                       \
-  X("autoSwordLing", autoSwordLing)
+  X("autoSwordLing", autoSwordLing) \
+  X("autoSpellExecute", autoSpellExecute) \
+  X("drawObjectiveAlert", drawObjectiveAlert)
 
 #define TATSUMI_FLOAT_SETTINGS                                                 \
   X("FieldView", FieldView)                                                     \
@@ -73,7 +75,12 @@
   X("lingSwordDashRange", lingSwordDashRange)                                   \
   X("lingDashDelay", lingDashDelay)                                             \
   X("lingSkill2X", lingSkill2X)                                                 \
-  X("lingSkill2Y", lingSkill2Y)
+  X("lingSkill2Y", lingSkill2Y) \
+  X("spellExecPct", spellExecPct) \
+  X("spellRange", spellRange) \
+  X("spellX", spellX) \
+  X("spellY", spellY) \
+  X("objectiveLowPct", objectiveLowPct)
 
 #define TATSUMI_INT_SETTINGS                                                   \
   X("retriSpamMs", retriSpamMs)                                                 \
@@ -84,4 +91,5 @@
   X("g_MinimapHeroSize", g_MinimapHeroSize)                                     \
   X("g_MinimapMonsterSize", g_MinimapMonsterSize)                               \
   X("lingSwordID", lingSwordID)                                                 \
-  X("gusionComboDelay", gusionComboDelay)
+  X("gusionComboDelay", gusionComboDelay) \
+  X("spellSpamMs", spellSpamMs)
