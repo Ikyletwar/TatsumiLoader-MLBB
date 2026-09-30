@@ -3073,6 +3073,7 @@ void Layout_tick_UI() {
   style.ScrollbarSize = 32.0f;
   style.ScrollbarRounding = 15.0f;
   style.GrabMinSize = 28.0f;
+  style.TouchExtraPadding = ImVec2(12, 12);
   style.GrabRounding = 6.0f;
   style.TabRounding = 6.0f;
   style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
@@ -3141,6 +3142,8 @@ void Layout_tick_UI() {
     if (uiScale < 0.8f) uiScale = 0.8f;
     if (uiScale > 1.4f) uiScale = 1.4f;
     io.FontGlobalScale = uiScale * uiUserScale;
+    // Resize via tepi + sudut (gampang diraih jempol), bukan cuma grip kecil.
+    io.ConfigWindowsResizeFromEdges = true;
   }
   if (is_root_mode) {
     DrawFloatingLogo();
