@@ -171,8 +171,7 @@ IP:port server) kalau sudah kebaca. Tombol `SEND REPORT` di SETTINGS untuk
 kirim manual.
 
 Konfigurasi: `src/config/TelegramConfig.h` (token + chat id).
-Isi token bot + chat id di `src/config/TelegramConfig.h` (lihat BotFather).
-Jangan commit token asli ke publik; kalau bocor, revoke via BotFather.
+Konfigurasi bot: `src/config/TelegramConfig.h` (token + chat id).
 
 ---
 
