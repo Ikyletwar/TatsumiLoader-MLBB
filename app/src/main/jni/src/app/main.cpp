@@ -3064,14 +3064,14 @@ void Layout_tick_UI() {
   style.WindowPadding = ImVec2(20, 20);
   style.WindowRounding = 12.0f;
   style.ChildRounding = 8.0f;
-  style.FramePadding = ImVec2(12, 8);
+  style.FramePadding = ImVec2(14, 10);
   style.FrameRounding = 10.0f;
   style.ItemSpacing = ImVec2(15, 12);
   style.ItemInnerSpacing = ImVec2(10, 8);
   style.IndentSpacing = 25.0f;
-  style.ScrollbarSize = 25.0f;
+  style.ScrollbarSize = 32.0f;
   style.ScrollbarRounding = 15.0f;
-  style.GrabMinSize = 20.0f;
+  style.GrabMinSize = 28.0f;
   style.GrabRounding = 6.0f;
   style.TabRounding = 6.0f;
   style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
@@ -3134,157 +3134,25 @@ void Layout_tick_UI() {
   colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
   colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
 
+  // Mobile-first: skala font + ukuran window mengikuti layar HP.
+  {
+    float uiScale = io.DisplaySize.y > 0 ? io.DisplaySize.y / 1080.0f : 1.0f;
+    if (uiScale < 0.8f) uiScale = 0.8f;
+    if (uiScale > 1.4f) uiScale = 1.4f;
+    io.FontGlobalScale = uiScale;
+  }
   if (is_root_mode) {
     DrawFloatingLogo();
     if (show_menu) {
-        ImGui::SetNextWindowSize(ImVec2(900, 700), ImGuiCond_FirstUseEver);
+        float winW = io.DisplaySize.x * 0.92f;
+        float winH = io.DisplaySize.y * 0.88f;
+        if (winW > 900.0f) winW = 900.0f;
+        if (winH > 700.0f) winH = 700.0f;
+        if (winW < 480.0f) winW = 480.0f;
+        if (winH < 560.0f) winH = 560.0f;
+        ImGui::SetNextWindowSize(ImVec2(winW, winH), ImGuiCond_FirstUseEver);
         if (ImGui::Begin(xorstr_("TatsumiLoader-MLBB"), &show_menu)) {
           if (ImGui::BeginTabBar(xorstr_("##MainTabs"))) {
-            if (ImGui::BeginTabItem(xorstr_("INFO"))) {
-              ImGui::BeginChild(xorstr_("##InfoBox"), ImVec2(0, 0), false);
-
-              
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- PREMIUM SUBSCRIPTION ---")).x) * 0.5f);
-              ImGui::Text(xorstr_("--- PREMIUM SUBSCRIPTION ---"));
-              ImGui::PopStyleColor();
-              ImGui::Separator();
-              ImGui::Spacing();
-
-              auto InfoRow = [](const char* label, const char* val, ImVec4 col = ImVec4(1,1,1,1)) {
-                  ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), xorstr_("%s"), label);
-                  ImGui::SameLine(160);
-                  ImGui::TextColored(col, xorstr_(": %s"), val);
-                  ImGui::Spacing();
-              };
-
-
-              
-              ImGui::Spacing();
-              ImGui::Separator();
-              ImGui::Spacing();
-
-              
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- DEVICE INFORMATION ---")).x) * 0.5f);
-              ImGui::Text(xorstr_("--- DEVICE INFORMATION ---"));
-              ImGui::PopStyleColor();
-              ImGui::Spacing();
-
-              char model[PROP_VALUE_MAX] = {0};
-              __system_property_get(xorstr_("ro.product.model"), model);
-              InfoRow(xorstr_("Model"), model);
-
-              InfoRow(xorstr_("Package"), g_package_name.c_str());
-              InfoRow(xorstr_("Injection"), is_attached ? xorstr_("Active") : xorstr_("Pending"),
-                      is_attached ? ImVec4(0,1,0,1) : ImVec4(1,0,0,1));
-              InfoRow(xorstr_("Version"), kTatsumiVersion);
-
-              ImGui::Spacing();
-              ImGui::Separator();
-              ImGui::Spacing();
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- FOLLOW US ---")).x) * 0.5f);
-              ImGui::Text(xorstr_("--- FOLLOW US ---"));
-              ImGui::PopStyleColor();
-              ImGui::Spacing();
-              {
-                float bw = (ImGui::GetContentRegionAvail().x - 8.0f) * 0.5f;
-                ImDrawList *fg = ImGui::GetWindowDrawList();
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.45f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.25f, 0.55f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.65f, 0.10f, 0.38f, 1.00f));
-                if (ImGui::Button(xorstr_("  Instagram @ikyletwar"), ImVec2(bw, 40))) OpenURL(xorstr_("https://www.instagram.com/ikyletwar/"));
-                ImVec2 igMn = ImGui::GetItemRectMin(), igMx = ImGui::GetItemRectMax();
-                ImVec2 igC = ImVec2(igMn.x + 22.0f, (igMn.y + igMx.y) * 0.5f);
-                fg->AddRect(ImVec2(igC.x - 8.0f, igC.y - 8.0f), ImVec2(igC.x + 8.0f, igC.y + 8.0f), IM_COL32(255,255,255,255), 3.0f, 0, 2.0f);
-                fg->AddCircle(igC, 3.5f, IM_COL32(255,255,255,255), 16, 2.0f);
-                fg->AddCircleFilled(ImVec2(igC.x + 5.5f, igC.y - 5.5f), 1.6f, IM_COL32(255,255,255,255));
-                ImGui::PopStyleColor(3);
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.08f, 0.10f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.16f, 0.20f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.04f, 0.04f, 0.05f, 1.00f));
-                if (ImGui::Button(xorstr_("  TikTok @ikyletwar"), ImVec2(bw, 40))) OpenURL(xorstr_("https://www.tiktok.com/@ikyletwar"));
-                ImVec2 ttMn = ImGui::GetItemRectMin(), ttMx = ImGui::GetItemRectMax();
-                ImVec2 ttC = ImVec2(ttMn.x + 22.0f, (ttMn.y + ttMx.y) * 0.5f);
-                fg->AddLine(ImVec2(ttC.x + 3.0f, ttC.y - 8.0f), ImVec2(ttC.x + 3.0f, ttC.y + 6.0f), IM_COL32(0,242,234,255), 2.5f);
-                fg->AddCircleFilled(ImVec2(ttC.x - 1.0f, ttC.y + 6.0f), 4.0f, IM_COL32(255,255,255,255));
-                fg->AddLine(ImVec2(ttC.x + 3.0f, ttC.y - 8.0f), ImVec2(ttC.x + 8.0f, ttC.y - 5.0f), IM_COL32(254,44,85,255), 2.5f);
-                ImGui::PopStyleColor(3);
-              }
-              ImGui::Spacing();
-
-              
-              ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 45);
-              float creditWidth = ImGui::CalcTextSize(xorstr_("Copyright (c) 2026 @TatsumiLoader ")).x;
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - creditWidth) * 0.5f);
-              ImGui::TextDisabled(xorstr_("Copyright (c) 2026 @TatsumiLoader "));
-
-              ImGui::EndChild();
-              ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem(xorstr_("ROOM"))) {
-              RenderRoomPlayerInfoImGui();
-              ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem(xorstr_("ESP"))) {
-              if (ImGui::CollapsingHeader(xorstr_("PLAYER ESP"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("ESP Line"), &drawMLine);
-                ImGui::CustomCheckbox(xorstr_("Hero ESP"), &iconhero);
-                if (iconhero || ESP_Player_Cooldown) {
-                  ImGui::SliderFloat(xorstr_("ESP Height"), &Avatar_OffsetY, 0.0f, 500.0f);
-                  ImGui::SliderFloat(xorstr_("Icon Size"), &g_HeroIconSize, 10.0f, 60.0f);
-                }
-                ImGui::CustomCheckbox(xorstr_("Prediction ESP"), &drawMPrediction);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("COOLDOWN & DRONE"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enemy Cooldown"), &ESP_Player_Cooldown);
-                if (ESP_Player_Cooldown) {
-                  ImGui::SliderFloat(xorstr_("CD Size"), &Cooldown_Size, 5.0f, 40.0f);
-                }
-                ImGui::Separator();
-                ImGui::CustomCheckbox(xorstr_("Enable Drone"), &EnableDrone);
-                if (EnableDrone) ImGui::SliderFloat(xorstr_("FOV"), &FieldView, -9.0f, -1.0f);
-              }
-              ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem(xorstr_("VISUAL"))) {
-              if (ImGui::CollapsingHeader(xorstr_("MONSTERS"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Monster ESP"), &drawMonsterName);
-                if (drawMonsterName) {
-                  ImGui::SliderFloat(xorstr_("Monster Icon Size"), &g_MonsterIconSize, 10.0f, 60.0f);
-                }
-              }
-              if (ImGui::CollapsingHeader(xorstr_("MINIMAP"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Minimap"), &MinimapIcon);
-                ImGui::CustomCheckbox(xorstr_("Show Monsters"), &drawMonsterMinimap);
-                ImGui::CustomCheckbox(xorstr_("Show Lord/Turtle"), &MinimapIconLordTurtle);
-                ImGui::CustomCheckbox(xorstr_("Hide Minimap Line"), &HideLine);
-                ImGui::CustomCheckbox(xorstr_("Show All Monsters"), &MinimapIconBuff);
-                ImGui::CustomCheckbox(xorstr_("Show Minion Dot"), &drawMinionMinimap);
-                ImGui::SliderInt(xorstr_("Minimap Size"), &MinimapSize, 100, 600);
-                ImGui::SliderInt(xorstr_("Minimap X"), &MinimapPos, 0, 1000);
-                ImGui::SliderInt(xorstr_("Minimap Y"), &MinimapPosY, 0, 1000);
-                ImGui::SliderInt(xorstr_("Hero Icon Size"), &g_MinimapHeroSize, 10, 100);
-                ImGui::SliderInt(xorstr_("Monster Icon Size"), &g_MinimapMonsterSize, 10, 100);
-                ImGui::SliderInt(xorstr_("Minion Dot Size"), &g_ICSize, 2, 20); 
-                if (ImGui::TreeNode(xorstr_("Calibration"))) {
-                  ImGui::SliderFloat(xorstr_("Scale"), &g_MinimapScale, 10.0f, 200.0f);
-                  ImGui::SliderFloat(xorstr_("Offset X"), &g_Res1_OffsetX, -100.0f, 100.0f);
-                  ImGui::SliderFloat(xorstr_("Offset Y"), &g_Res1_OffsetY, -100.0f, 100.0f);
-                  ImGui::TreePop();
-                }
-              }
-              if (ImGui::CollapsingHeader(xorstr_("ALERT WARNING"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Show Alert"), &drawAlertUnderAttack);
-                ImGui::CustomCheckbox(xorstr_("Show Alert HP"), &Alert_ShowHPText);
-                ImGui::SliderFloat(xorstr_("Alert X (%)"), &Alert_PosX, 0.0f, 1.0f);
-                ImGui::SliderFloat(xorstr_("Alert Y (%)"), &Alert_PosY, 0.0f, 1.0f);
-                ImGui::SliderFloat(xorstr_("Alert Scale"), &Alert_Scale, 0.5f, 3.0f);
-              }
-              ImGui::EndTabItem();
-            }
             if (ImGui::BeginTabItem(xorstr_("AUTO"))) {
               if (ImGui::CollapsingHeader(xorstr_("AUTO RETRI"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Auto Retri"), &autoRetribution);
@@ -3377,6 +3245,152 @@ void Layout_tick_UI() {
               }
               ImGui::EndTabItem();
             }
+            if (ImGui::BeginTabItem(xorstr_("ESP"))) {
+              if (ImGui::CollapsingHeader(xorstr_("PLAYER ESP"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("ESP Line"), &drawMLine);
+                ImGui::CustomCheckbox(xorstr_("Hero ESP"), &iconhero);
+                if (iconhero || ESP_Player_Cooldown) {
+                  ImGui::SliderFloat(xorstr_("ESP Height"), &Avatar_OffsetY, 0.0f, 500.0f);
+                  ImGui::SliderFloat(xorstr_("Icon Size"), &g_HeroIconSize, 10.0f, 60.0f);
+                }
+                ImGui::CustomCheckbox(xorstr_("Prediction ESP"), &drawMPrediction);
+              }
+              if (ImGui::CollapsingHeader(xorstr_("COOLDOWN & DRONE"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Enemy Cooldown"), &ESP_Player_Cooldown);
+                if (ESP_Player_Cooldown) {
+                  ImGui::SliderFloat(xorstr_("CD Size"), &Cooldown_Size, 5.0f, 40.0f);
+                }
+                ImGui::Separator();
+                ImGui::CustomCheckbox(xorstr_("Enable Drone"), &EnableDrone);
+                if (EnableDrone) ImGui::SliderFloat(xorstr_("FOV"), &FieldView, -9.0f, -1.0f);
+              }
+              ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem(xorstr_("VISUAL"))) {
+              if (ImGui::CollapsingHeader(xorstr_("MONSTERS"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Monster ESP"), &drawMonsterName);
+                if (drawMonsterName) {
+                  ImGui::SliderFloat(xorstr_("Monster Icon Size"), &g_MonsterIconSize, 10.0f, 60.0f);
+                }
+              }
+              if (ImGui::CollapsingHeader(xorstr_("MINIMAP"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Enable Minimap"), &MinimapIcon);
+                ImGui::CustomCheckbox(xorstr_("Show Monsters"), &drawMonsterMinimap);
+                ImGui::CustomCheckbox(xorstr_("Show Lord/Turtle"), &MinimapIconLordTurtle);
+                ImGui::CustomCheckbox(xorstr_("Hide Minimap Line"), &HideLine);
+                ImGui::CustomCheckbox(xorstr_("Show All Monsters"), &MinimapIconBuff);
+                ImGui::CustomCheckbox(xorstr_("Show Minion Dot"), &drawMinionMinimap);
+                ImGui::SliderInt(xorstr_("Minimap Size"), &MinimapSize, 100, 600);
+                ImGui::SliderInt(xorstr_("Minimap X"), &MinimapPos, 0, 1000);
+                ImGui::SliderInt(xorstr_("Minimap Y"), &MinimapPosY, 0, 1000);
+                ImGui::SliderInt(xorstr_("Hero Icon Size"), &g_MinimapHeroSize, 10, 100);
+                ImGui::SliderInt(xorstr_("Monster Icon Size"), &g_MinimapMonsterSize, 10, 100);
+                ImGui::SliderInt(xorstr_("Minion Dot Size"), &g_ICSize, 2, 20); 
+                if (ImGui::TreeNode(xorstr_("Calibration"))) {
+                  ImGui::SliderFloat(xorstr_("Scale"), &g_MinimapScale, 10.0f, 200.0f);
+                  ImGui::SliderFloat(xorstr_("Offset X"), &g_Res1_OffsetX, -100.0f, 100.0f);
+                  ImGui::SliderFloat(xorstr_("Offset Y"), &g_Res1_OffsetY, -100.0f, 100.0f);
+                  ImGui::TreePop();
+                }
+              }
+              if (ImGui::CollapsingHeader(xorstr_("ALERT WARNING"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Show Alert"), &drawAlertUnderAttack);
+                ImGui::CustomCheckbox(xorstr_("Show Alert HP"), &Alert_ShowHPText);
+                ImGui::SliderFloat(xorstr_("Alert X (%)"), &Alert_PosX, 0.0f, 1.0f);
+                ImGui::SliderFloat(xorstr_("Alert Y (%)"), &Alert_PosY, 0.0f, 1.0f);
+                ImGui::SliderFloat(xorstr_("Alert Scale"), &Alert_Scale, 0.5f, 3.0f);
+              }
+              ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem(xorstr_("ROOM"))) {
+              RenderRoomPlayerInfoImGui();
+              ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem(xorstr_("INFO"))) {
+              ImGui::BeginChild(xorstr_("##InfoBox"), ImVec2(0, 0), false);
+
+              
+              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
+              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- PREMIUM SUBSCRIPTION ---")).x) * 0.5f);
+              ImGui::Text(xorstr_("--- PREMIUM SUBSCRIPTION ---"));
+              ImGui::PopStyleColor();
+              ImGui::Separator();
+              ImGui::Spacing();
+
+              auto InfoRow = [](const char* label, const char* val, ImVec4 col = ImVec4(1,1,1,1)) {
+                  ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), xorstr_("%s"), label);
+                  ImGui::SameLine(160);
+                  ImGui::TextColored(col, xorstr_(": %s"), val);
+                  ImGui::Spacing();
+              };
+
+
+              
+              ImGui::Spacing();
+              ImGui::Separator();
+              ImGui::Spacing();
+
+              
+              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- DEVICE INFORMATION ---")).x) * 0.5f);
+              ImGui::Text(xorstr_("--- DEVICE INFORMATION ---"));
+              ImGui::PopStyleColor();
+              ImGui::Spacing();
+
+              char model[PROP_VALUE_MAX] = {0};
+              __system_property_get(xorstr_("ro.product.model"), model);
+              InfoRow(xorstr_("Model"), model);
+
+              InfoRow(xorstr_("Package"), g_package_name.c_str());
+              InfoRow(xorstr_("Injection"), is_attached ? xorstr_("Active") : xorstr_("Pending"),
+                      is_attached ? ImVec4(0,1,0,1) : ImVec4(1,0,0,1));
+              InfoRow(xorstr_("Version"), kTatsumiVersion);
+
+              ImGui::Spacing();
+              ImGui::Separator();
+              ImGui::Spacing();
+              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
+              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- FOLLOW US ---")).x) * 0.5f);
+              ImGui::Text(xorstr_("--- FOLLOW US ---"));
+              ImGui::PopStyleColor();
+              ImGui::Spacing();
+              {
+                float bw = (ImGui::GetContentRegionAvail().x - 8.0f) * 0.5f;
+                ImDrawList *fg = ImGui::GetWindowDrawList();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.45f, 1.00f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.25f, 0.55f, 1.00f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.65f, 0.10f, 0.38f, 1.00f));
+                if (ImGui::Button(xorstr_("  Instagram @ikyletwar"), ImVec2(bw, 40))) OpenURL(xorstr_("https://www.instagram.com/ikyletwar/"));
+                ImVec2 igMn = ImGui::GetItemRectMin(), igMx = ImGui::GetItemRectMax();
+                ImVec2 igC = ImVec2(igMn.x + 22.0f, (igMn.y + igMx.y) * 0.5f);
+                fg->AddRect(ImVec2(igC.x - 8.0f, igC.y - 8.0f), ImVec2(igC.x + 8.0f, igC.y + 8.0f), IM_COL32(255,255,255,255), 3.0f, 0, 2.0f);
+                fg->AddCircle(igC, 3.5f, IM_COL32(255,255,255,255), 16, 2.0f);
+                fg->AddCircleFilled(ImVec2(igC.x + 5.5f, igC.y - 5.5f), 1.6f, IM_COL32(255,255,255,255));
+                ImGui::PopStyleColor(3);
+                ImGui::SameLine();
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.08f, 0.10f, 1.00f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.16f, 0.20f, 1.00f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.04f, 0.04f, 0.05f, 1.00f));
+                if (ImGui::Button(xorstr_("  TikTok @ikyletwar"), ImVec2(bw, 40))) OpenURL(xorstr_("https://www.tiktok.com/@ikyletwar"));
+                ImVec2 ttMn = ImGui::GetItemRectMin(), ttMx = ImGui::GetItemRectMax();
+                ImVec2 ttC = ImVec2(ttMn.x + 22.0f, (ttMn.y + ttMx.y) * 0.5f);
+                fg->AddLine(ImVec2(ttC.x + 3.0f, ttC.y - 8.0f), ImVec2(ttC.x + 3.0f, ttC.y + 6.0f), IM_COL32(0,242,234,255), 2.5f);
+                fg->AddCircleFilled(ImVec2(ttC.x - 1.0f, ttC.y + 6.0f), 4.0f, IM_COL32(255,255,255,255));
+                fg->AddLine(ImVec2(ttC.x + 3.0f, ttC.y - 8.0f), ImVec2(ttC.x + 8.0f, ttC.y - 5.0f), IM_COL32(254,44,85,255), 2.5f);
+                ImGui::PopStyleColor(3);
+              }
+              ImGui::Spacing();
+
+              
+              ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 45);
+              float creditWidth = ImGui::CalcTextSize(xorstr_("Copyright (c) 2026 @TatsumiLoader ")).x;
+              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - creditWidth) * 0.5f);
+              ImGui::TextDisabled(xorstr_("Copyright (c) 2026 @TatsumiLoader "));
+
+              ImGui::EndChild();
+              ImGui::EndTabItem();
+            }
+
 
             if (ImGui::BeginTabItem(xorstr_("SETTINGS"))) {
               if (ImGui::CollapsingHeader(xorstr_("CONFIG"), ImGuiTreeNodeFlags_DefaultOpen)) {

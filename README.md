@@ -388,6 +388,7 @@ Buat backup tiap habis rebuild berhasil.
 - **2026-09-30** — Tab INFO sosmed IG/TikTok; Telegram device report.
 - **2026-09-30** — Push GitHub (LFS) + public.
 - **2026-09-30** — Tab AUTO (retri+skill+spell gabung), auto execute, objective alert akurat (fix uint64, % besar, border kedip, ID 2110), hapus tab RETRI/SKILL.
+- **2026-09-30** — UI mobile-first: window+font responsif, tab AUTO duluan, touch target besar.
 - **2026-09-30** — Diet: cooldown cache 500ms + minimap scan/draw split (scan 10Hz, gambar tiap frame).
 - **2026-09-30** — Hapus total fitur Telegram (kode+config+tombol+dep curl, binary 35→33M).
 - **2026-09-30** — v1.2.1: UI FPS cap 30/60/90/120 (default 60, atasi minimap blink).
