@@ -22,7 +22,7 @@ bool initGUI_draw(uint32_t _screen_x, uint32_t _screen_y, bool log) {
     #else
         InitVulkan();
         SetupVulkan();
-        ::native_window = android::ANativeWindowCreator::Create("AImGui", _screen_x, _screen_y, true, g_hideRecorder);
+        ::native_window = android::ANativeWindowCreator::Create("AImGui", _screen_x, _screen_y, true);
         SetupVulkanWindow(::native_window, (int) _screen_x, (int) _screen_y);
     #endif
     if (!ImGui_init()) {
@@ -42,7 +42,7 @@ bool init_egl(uint32_t _screen_x, uint32_t _screen_y, bool log) {
     pclose(fp);
     system ("settings put global block_untrusted_touches 0 > /dev/null 2>&1");
     system ("settings put secure block_untrusted_touches 0 > /dev/null 2>&1");
-    ::native_window = android::ANativeWindowCreator::Create("AImGui", _screen_x, _screen_y, false, g_hideRecorder);
+    ::native_window = android::ANativeWindowCreator::Create("AImGui", _screen_x, _screen_y, false);
     ANativeWindow_acquire(native_window);
     display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
     if (display == EGL_NO_DISPLAY) {
