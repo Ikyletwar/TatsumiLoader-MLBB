@@ -43,6 +43,7 @@
   X("autoSwordLing", autoSwordLing) \
   X("autoSpellExecute", autoSpellExecute) \
   X("drawObjectiveAlert", drawObjectiveAlert) \
+  X("retriNearbyOnly", retriNearbyOnly) \
   X("useAdGuardDns", useAdGuardDns)
 
 #define TATSUMI_FLOAT_SETTINGS                                                 \
@@ -81,7 +82,8 @@
   X("spellRange", spellRange) \
   X("spellX", spellX) \
   X("spellY", spellY) \
-  X("objectiveLowPct", objectiveLowPct)
+  X("objectiveLowPct", objectiveLowPct) \
+  X("retriNearbyRange", retriNearbyRange)
 
 #define TATSUMI_INT_SETTINGS                                                   \
   X("retriSpamMs", retriSpamMs)                                                 \

@@ -325,6 +325,8 @@ float retriEarlyMargin = 180.0f;   // tap lebih awal utk kompensasi network/tick
 float retriMaxRange = 8.5f;        // sedikit longgar dari 8.0 bawaan game
 int retriSpamMs = 80;              // jeda minimal antar tap (anti flood, tapi retry cepat)
 bool retriDoubleTap = true;        // tap 2x per trigger biar tidak miss
+bool retriNearbyOnly = false;
+float retriNearbyRange = 12.0f;
 bool autoSpellExecute = false;
 float spellExecPct = 12.0f;
 float spellRange = 5.0f;
@@ -977,6 +979,31 @@ void FastAutoRetri() {
   int retriDmg = CalculateRetriDamage(myLevel) + (int)retriEarlyMargin;
   Vector3 myPos;
   if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos))) return;
+  // Nearby-enemy-only: skip semua scan monster bila tak ada musuh di radius.
+  if (retriNearbyOnly) {
+    static auto lastNearCheck = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+    static bool lastNearResult = true;
+    auto nowQ = std::chrono::steady_clock::now();
+    long nearAge = std::chrono::duration_cast<std::chrono::milliseconds>(nowQ - lastNearCheck).count();
+    if (nearAge >= 200) {
+      lastNearCheck = nowQ;
+      lastNearResult = false;
+      long pb = ReadPtr(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListDataOffset)) +
+                OFF_BM(ListArrayOffset);
+      int pc = Read<int>(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListCountOffset));
+      if (pc > 0 && pc <= 40) {
+        for (int i = 0; i < pc; i++) {
+          auto e = ReadPtr(pb + (i << 3));
+          if (!e || Read<bool>(e + OFF_SE(bDeath))) continue;
+          if (Read<bool>(e + OFF_SE(bSameCampType))) continue;
+          Vector3 ep;
+          if (!vm_readv(e + OFF_SE(vCachePosition), &ep, sizeof(ep))) continue;
+          if (Vector3::Distance(myPos, ep) <= retriNearbyRange) { lastNearResult = true; break; }
+        }
+      }
+    }
+    if (!lastNearResult) return;
+  }
   static auto lastFastTap = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
   auto now = std::chrono::steady_clock::now();
   long sinceTap = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFastTap).count();
@@ -3274,6 +3301,8 @@ void Layout_tick_UI() {
                 ImGui::SliderFloat(xorstr_("Max Range"), &retriMaxRange, 5.0f, 12.0f);
                 ImGui::SliderInt(xorstr_("Spam Ms"), &retriSpamMs, 30, 300);
                 ImGui::CustomCheckbox(xorstr_("Double Tap"), &retriDoubleTap);
+                ImGui::CustomCheckbox(xorstr_("Nearby Enemy Only"), &retriNearbyOnly);
+                if (retriNearbyOnly) ImGui::SliderFloat(xorstr_("Nearby Range"), &retriNearbyRange, 3.0f, 30.0f);
               }
               if (ImGui::CollapsingHeader(xorstr_("TARGETS"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Buff Red"), &AutoRetributionRed);
@@ -3599,7 +3628,19 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
   struct timespec lastTime;
   clock_gettime(CLOCK_MONOTONIC, &lastTime);
   LoadTatsumiSettings();
+  struct timespec lastFrame = {0, 0};
   while (main_thread_flag) {
+    struct timespec nowTs;
+    clock_gettime(CLOCK_MONOTONIC, &nowTs);
+    if (lastFrame.tv_sec != 0) {
+      long fms = (nowTs.tv_sec - lastFrame.tv_sec) * 1000 +
+                 (nowTs.tv_nsec - lastFrame.tv_nsec) / 1000000;
+      if (fms < 33) {
+        usleep((33 - fms) * 1000);
+        continue;
+      }
+    }
+    lastFrame = nowTs;
     drawBegin();
     struct timespec currentTime;
     clock_gettime(CLOCK_MONOTONIC, &currentTime);

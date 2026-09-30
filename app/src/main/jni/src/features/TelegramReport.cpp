@@ -8,10 +8,15 @@
 #include <cstdio>
 #include <string>
 #include <thread>
+#include <android/log.h>
+#define LOGT(...) __android_log_print(ANDROID_LOG_DEBUG, "TatsumiLoader", __VA_ARGS__)
 
 #include "config/TelegramConfig.h"
 
-static size_t tgDiscard(char *, size_t size, size_t nmemb, void *) {
+static size_t tgCapture(char *ptr, size_t size, size_t nmemb, void *ud) {
+  auto *s = static_cast<std::string *>(ud);
+  s->append(ptr, size * nmemb);
+  if (s->size() > 512) s->resize(512);
   return size * nmemb;
 }
 
@@ -45,11 +50,16 @@ bool TgSendMessage(const std::string &text) {
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
   curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)body.size());
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, tgDiscard);
+  curl_easy_setopt(curl, CURLOPT_CAPATH, "/system/etc/security/cacerts");
+  std::string resp;
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, tgCapture);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &resp);
   CURLcode rc = curl_easy_perform(curl);
   long http = 0;
   if (rc == CURLE_OK)
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http);
+  LOGT("[tg] send rc=%d (%s) http=%ld resp=%.200s", (int)rc,
+       rc == CURLE_OK ? "ok" : curl_easy_strerror(rc), http, resp.c_str());
   curl_slist_free_all(hdr);
   curl_easy_cleanup(curl);
   return rc == CURLE_OK && http == 200;
