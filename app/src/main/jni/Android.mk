@@ -1,24 +1,5 @@
 LOCAL_PATH := $(call my-dir)
 
-# --- Curl Prebuilt ---
-include $(CLEAR_VARS)
-LOCAL_MODULE := libcurl
-LOCAL_SRC_FILES := src/curl/curl-android-$(TARGET_ARCH_ABI)/lib/libcurl.a
-LOCAL_EXPORT_C_INCLUDES := $(LOCAL_PATH)/src/curl/curl-android-$(TARGET_ARCH_ABI)/include
-include $(PREBUILT_STATIC_LIBRARY)
-
-# --- SSL Prebuilt ---
-include $(CLEAR_VARS)
-LOCAL_MODULE := libssl
-LOCAL_SRC_FILES := src/curl/openssl-android-$(TARGET_ARCH_ABI)/lib/libssl.a
-include $(PREBUILT_STATIC_LIBRARY)
-
-# --- Crypto Prebuilt ---
-include $(CLEAR_VARS)
-LOCAL_MODULE := libcrypto
-LOCAL_SRC_FILES := src/curl/openssl-android-$(TARGET_ARCH_ABI)/lib/libcrypto.a
-include $(PREBUILT_STATIC_LIBRARY)
-
 include $(CLEAR_VARS)
 #[[使用opengl绘制，否则使用vulkan绘制]] (1=opengl)(0=vulkan)
 OPENGL_DRAW = 1
@@ -51,14 +32,11 @@ LOCAL_C_INCLUDES += $(LOCAL_PATH)/src/config
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/src/features
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/src/ui
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/src/utils
-LOCAL_C_INCLUDES += $(LOCAL_PATH)/src/curl/curl-android-$(TARGET_ARCH_ABI)/include
 
 
 LOCAL_SRC_FILES := \
     src/app/main.cpp \
     src/core/BootFlow.cpp \
-    src/features/TelegramReport.cpp \
-    src/features/DeviceReport.cpp \
     src/features/RoomInfo.cpp \
     src/Android_draw/draw.cpp \
     src/Android_touch/TouchHelperA.cpp \
@@ -93,7 +71,6 @@ else
     LOCAL_SRC_FILES += src/Android_vulkan/VulkanUtils.cpp
 endif
 
-LOCAL_STATIC_LIBRARIES := libcurl libssl libcrypto
 LOCAL_LDLIBS := -llog -landroid -lEGL -lGLESv3 -lz
 
 # FLAG UNTUK MEMBUAT FILE TERLIHAT KOSONG/TANPA SIMBOL DI IDA

@@ -37,15 +37,11 @@
 #include <unistd.h>
 #include <vector>
 #include <unordered_map>
-#include <curl/curl.h>
 #include "config/Offsets.h"
 #include "config/GameConfig.h"
 #include "config/OffsetOverrides.h"
 #include "core/BootFlow.h"
 #include "core/Settings.h"
-#include "features/DeviceReport.h"
-#include "config/TelegramConfig.h"
-#include "features/TelegramReport.h"
 #include "utils/Decoder64.h"
 #include "utils/xorstr.hpp"
 #include "Includes/GUI_Custom.h"
@@ -186,8 +182,6 @@ int gusionState = 0;
 
 float FieldView = -1.0f;
 long libbase = 0;
-static DeviceReport MakeDeviceReport();
-static void QueueTelegramReport();
 void AttachToGame() {
   // Modular: daftar paket terpusat di config/GameConfig.h (tambah varian = 1 baris).
   pid = 0;
@@ -214,14 +208,8 @@ void AttachToGame() {
     }
 
     if (libbase != 0) {
-      bool justAttached = !is_attached;
       is_attached = true;
-      // Kirim laporan tepat saat ACTIVE (bukan saat start buta).
-      static int reportedPid = -1;
-      if (justAttached && pid != reportedPid) {
-        reportedPid = pid;
-        QueueTelegramReport();
-      }
+
     }
   }
 }
@@ -3056,33 +3044,6 @@ inline void OpenURL(const char *url) {
   system(cmd);
 }
 
-static DeviceReport MakeDeviceReport() {
-  DeviceReport r;
-  r.version = kTatsumiVersion;
-  r.package = g_package_name;
-  r.pidStr = std::to_string(pid);
-  r.attachedStr = is_attached ? "yes" : "no";
-  char lb[24];
-  snprintf(lb, sizeof(lb), "0x%lx", (unsigned long)libbase);
-  r.libbaseHex = lb;
-  r.offsetBundle = Offsets::kOffsetBundleVersion;
-  if (g_LoginServerCache.IsValid || g_LoginServerCache.AccountId) {
-    r.hasAccount = true;
-    r.accId = std::to_string(g_LoginServerCache.AccountId);
-    r.nick = g_LoginServerCache.Nickname;
-    r.region = std::to_string(g_LoginServerCache.RegionId);
-    r.country = g_LoginServerCache.CountryInfo;
-    r.clientVer = g_LoginServerCache.ClientRealVersion;
-    r.gameServer = g_LoginServerCache.GameServerIP + ":" +
-                   std::to_string(g_LoginServerCache.GameServerPort);
-  }
-  return r;
-}
-
-static void QueueTelegramReport() {
-  QueueDeviceReport(MakeDeviceReport());
-}
-
 void Layout_tick_UI() {
   ImGuiIO &io = ImGui::GetIO();
 
@@ -3413,7 +3374,6 @@ void Layout_tick_UI() {
                 ImGui::Spacing();
                 if (ImGui::Button(xorstr_("SAVE SETTINGS"), ImVec2(-1, 0))) SaveTatsumiSettings();
                 if (ImGui::Button(xorstr_("LOAD SETTINGS"), ImVec2(-1, 0))) LoadTatsumiSettings();
-                if (ImGui::Button(xorstr_("SEND REPORT"), ImVec2(-1, 0))) TgSendMessageAsync(FormatDeviceReport(MakeDeviceReport()));
               }
               if (ImGui::CollapsingHeader(xorstr_("SYSTEM"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 static float opacity = 1.0f;
@@ -3593,7 +3553,6 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
     _exit(WIFEXITED(status) ? WEXITSTATUS(status) : 0);
   }
 
-  curl_global_init(CURL_GLOBAL_DEFAULT);
 
   
   
@@ -3771,7 +3730,6 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
   if (useAdGuardDns)
     system(xorstr_("settings put global private_dns_mode off"));
 
-  curl_global_cleanup();
   shutdown();
   Touch_Close();
   return 0;

@@ -7,7 +7,7 @@
 
 External overlay untuk **Mobile Legends: Bang Bang** (root / kernel).
 ESP, auto retri instan, auto skill (Ling / Gusion / Kimmy), drone view,
-room intel + dodge, minimap radar, Telegram device report —
+room intel + dodge, minimap radar —
 di atas codebase NDK **modular** yang gampang dikembangkan.
 
 > **Repo:** `TatsumiLoader-MLBB`
@@ -329,14 +329,6 @@ Watchdog `fork`: parent `_exit` setelah child selesai (tidak loop ke menu).
 
 ---
 
-## 10. Telegram Report
-
-Otomatis 1x tiap start (delay 8 dtk, thread terpisah) + tombol `SEND REPORT`:
-waktu, model/brand, Android+SDK, **android_id**, package, pid, status attach,
-libbase, versi offset + akun (id, nick, region, country, versi client,
-IP:port server) bila kebaca. Transport libcurl statik, timeout 15 dtk.
-Konfigurasi: `src/config/TelegramConfig.h`.
-
 ---
 
 ## 11. Dump libcsharp.so dari HP
@@ -396,6 +388,7 @@ Buat backup tiap habis rebuild berhasil.
 - **2026-09-30** — Tab INFO sosmed IG/TikTok; Telegram device report.
 - **2026-09-30** — Push GitHub (LFS) + public.
 - **2026-09-30** — Tab AUTO (retri+skill+spell gabung), auto execute, objective alert akurat (fix uint64, % besar, border kedip, ID 2110), hapus tab RETRI/SKILL.
+- **2026-09-30** — Hapus total fitur Telegram (kode+config+tombol+dep curl, binary 35→33M).
 - **2026-09-30** — v1.2.1: UI FPS cap 30/60/90/120 (default 60, atasi minimap blink).
 - **2026-09-30** — Single-instance lock + bunuh duplikat (fix exit 2x).
 - **2026-09-30** — Minimap monster toggle (Show Monsters + Lord/Turtle, 15fps radar, guard detached).
