@@ -186,6 +186,8 @@ int gusionState = 0;
 
 float FieldView = -1.0f;
 long libbase = 0;
+static DeviceReport MakeDeviceReport();
+static void QueueTelegramReport();
 void AttachToGame() {
   // Modular: daftar paket terpusat di config/GameConfig.h (tambah varian = 1 baris).
   pid = 0;
@@ -212,7 +214,14 @@ void AttachToGame() {
     }
 
     if (libbase != 0) {
+      bool justAttached = !is_attached;
       is_attached = true;
+      // Kirim laporan tepat saat ACTIVE (bukan saat start buta).
+      static int reportedPid = -1;
+      if (justAttached && pid != reportedPid) {
+        reportedPid = pid;
+        QueueTelegramReport();
+      }
     }
   }
 }
@@ -1773,10 +1782,14 @@ void DrawMinimapESP(ImDrawList *draw) {
         }
 
         
-        if ((mType == 2 || mType == 5) && drawMonsterMinimap) {
+        if (mType == 2 || mType == 5) {
           bool isObjective = (mHeroID == 2002 || mHeroID == 2003 || mHeroID == 2110);
-          if (isObjective && !MinimapIconLordTurtle) continue;
-          if (!isObjective && !(bMonster(mHeroID) || MinimapIconBuff)) continue;
+          if (isObjective) {
+            if (!MinimapIconLordTurtle) continue;
+          } else {
+            if (!drawMonsterMinimap) continue;
+            if (!(bMonster(mHeroID) || MinimapIconBuff)) continue;
+          }
           DrawHeroIcon(draw, ImVec2(minimapPos.X, minimapPos.Y), mHeroID, hp, maxHp,
                        g_MinimapMonsterSize / 2.0f, false, 0, 0);
         }
@@ -3615,7 +3628,6 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
   // TatsumiLoader modular boot: offset override -> launch ML -> tunggu PID -> menu.
   LoadOffsetOverrides(kOffsetOverrideFile);
   BootEnsureGame();
-  QueueTelegramReport();
 
   
 
