@@ -762,7 +762,7 @@ ImColor Cooldown_ColorReady = ImColor(0, 255, 0, 255);
 ImColor Cooldown_ColorCD = ImColor(255, 80, 80, 255);
 float Cooldown_OffsetY = 150.0f;
 float Cooldown_Size = 15.0f;
-CoolDownData getCoolDown(uintptr_t show_entity) {
+static CoolDownData getCoolDownFresh(uintptr_t show_entity) {
   CoolDownData result;
 
   auto cdComp = Read<uintptr_t>(show_entity + OFF_SE(m_ShowCoolDownComp));
@@ -891,6 +891,19 @@ CoolDownData getCoolDown(uintptr_t show_entity) {
   }
 
   return result;
+}
+CoolDownData getCoolDown(uintptr_t show_entity) {
+  static std::unordered_map<uintptr_t,
+      std::pair<std::chrono::steady_clock::time_point, CoolDownData>> cdCache;
+  auto now = std::chrono::steady_clock::now();
+  auto it = cdCache.find(show_entity);
+  if (it != cdCache.end() &&
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - it->second.first).count() < 500)
+    return it->second.second;
+  CoolDownData r = getCoolDownFresh(show_entity);
+  cdCache[show_entity] = {now, r};
+  if (cdCache.size() > 64) cdCache.clear();
+  return r;
 }
 void DrawCircularIndicator(ImDrawList *Draw, ImVec2 pos, float size, int cdVal, const char* label, ImTextureID icon = nullptr) {
   bool isReady = (cdVal <= 0);
@@ -1680,108 +1693,106 @@ Vector2 WorldToMinimap(Vector3 HeroPosition) {
            g_Res1_OffsetY;
   return Res1;
 }
+struct MmDot {
+  float x, y;
+  int id, hp, maxHp, level, mType, kind; // kind: 0 hero, 1 monster, 2 minion
+};
+
 void DrawMinimapESP(ImDrawList *draw) {
   if (!MinimapIcon)
     return;
   if (!is_attached || libbase == 0)
     return;
-  long a1 = ReadPtr(libbase + OFF_BM(BasePtr));
-  if (!a1)
-    return;
-  long a2 = ReadPtr(a1 + OFF_BM(PtrChain1));
-  if (!a2)
-    return;
-  long a32 = ReadPtr(a2);
-  if (!a32)
-    return;
-
-  auto logicMgr = GetLogicBattleManagerInstance();
-  uint now = logicMgr ? Read<uint>(logicMgr + OFF_BLC(m_uiFrameTime)) : 0;
-
-  long showList = ReadPtr(a32 + OFF_BM(ShowPlayers));
-  if (!showList)
-    return;
-  long playerList = ReadPtr(showList + OFF_BM(ListDataOffset));
-  if (!playerList)
-    return;
-  playerList += OFF_BM(ListArrayOffset);
-  uint playerCount = Read<uint>(showList + OFF_BM(ListCountOffset));
-  for (int i = 0; i < playerCount; i++) {
-    long Objaddr = ReadPtr(playerList + (i << 3));
-    if (!Objaddr)
-      continue;
-
-    
-    if (Read<bool>(Objaddr + OFF_SE(bSameCampType)))
-      continue;
-
-    bool isDead = Read<bool>(Objaddr + OFF_SE(bDeath));
-    if (isDead)
-      continue; 
-
-    Vector3A pos;
-    vm_readv(Objaddr + OFF_SE(vCachePosition), &pos, sizeof(pos));
-    if (pos.X == 0 && pos.Y == 0 && pos.Z == 0)
-      continue;
-
-    Vector2 minimapPos = WorldToMinimap({pos.X, pos.Y, pos.Z});
-    int heroId = Read<int>(Objaddr + OFF_SE(HeroID));
-    int hp = Read<int>(Objaddr + OFF_SE(Hp));
-    int maxHp = Read<int>(Objaddr + OFF_SE(HpMax));
-    int level = Read<int>(Objaddr + OFF_SE(Level));
-
-    DrawHeroIcon(draw, ImVec2(minimapPos.X, minimapPos.Y), heroId, hp, maxHp,
-                 g_MinimapHeroSize / 2.0f, true, level, 0);
-  }
-  long showMonster = ReadPtr(a32 + OFF_BM(ShowMonsters));
-  if (showMonster) {
-    long monsterList = ReadPtr(showMonster + OFF_BM(ListDataOffset));
-    if (monsterList) {
-      monsterList += OFF_BM(ListArrayOffset);
-      uint monsterCount = Read<uint>(showMonster + OFF_BM(ListCountOffset));
-      for (int i = 0; i < monsterCount; i++) {
-        long Objaddr = ReadPtr(monsterList + (i << 3));
-        if (!Objaddr)
-          continue;
-
-        int mType = Read<int>(Objaddr + OFF_SE(iType));
-        int mHeroID = Read<int>(Objaddr + OFF_SE(HeroID));
-        bool isDead = Read<bool>(Objaddr + OFF_SE(bDeath));
-
-        if (isDead)
-          continue;
-
-        Vector3A pos;
-        vm_readv(Objaddr + OFF_SE(vCachePosition), &pos, sizeof(pos));
-        if (pos.X == 0 && pos.Y == 0 && pos.Z == 0)
-          continue;
-        Vector2 minimapPos = WorldToMinimap({pos.X, pos.Y, pos.Z});
-        int hp = Read<int>(Objaddr + OFF_SE(Hp));
-        int maxHp = Read<int>(Objaddr + OFF_SE(HpMax));
-
-        if (mType == 1 && drawMinionMinimap) {
-          if (Read<bool>(Objaddr + OFF_SE(bSameCampType)))
-            continue; 
-          draw->AddCircleFilled(ImVec2(minimapPos.X, minimapPos.Y),
-                                minionMinimapSize, IM_COL32(255, 0, 0, 200), 8);
-          draw->AddCircle(ImVec2(minimapPos.X, minimapPos.Y), minionMinimapSize,
-                          IM_COL32(0, 0, 0, 255), 8, 1.0f);
-          continue;
-        }
-
-        
-        if (mType == 2 || mType == 5) {
-          bool isObjective = (mHeroID == 2002 || mHeroID == 2003 || mHeroID == 2110);
-          if (isObjective) {
-            if (!MinimapIconLordTurtle) continue;
-          } else {
-            if (!drawMonsterMinimap) continue;
-            if (!(bMonster(mHeroID) || MinimapIconBuff)) continue;
+  // Scan berat 10Hz, gambar tiap frame dari cache (tidak blink, hemat CPU).
+  static std::vector<MmDot> mmCache;
+  static auto lastMmScan = std::chrono::steady_clock::now() - std::chrono::seconds(1);
+  auto nowMm = std::chrono::steady_clock::now();
+  if (std::chrono::duration_cast<std::chrono::milliseconds>(nowMm - lastMmScan).count() >= 100) {
+    lastMmScan = nowMm;
+    mmCache.clear();
+    long a1 = ReadPtr(libbase + OFF_BM(BasePtr));
+    if (a1) {
+      long a2 = ReadPtr(a1 + OFF_BM(PtrChain1));
+      if (a2) {
+        long a32 = ReadPtr(a2);
+        if (a32) {
+          auto logicMgr = GetLogicBattleManagerInstance();
+          uint now = logicMgr ? Read<uint>(logicMgr + OFF_BLC(m_uiFrameTime)) : 0;
+          (void)now;
+          long showList = ReadPtr(a32 + OFF_BM(ShowPlayers));
+          if (showList) {
+            long playerList = ReadPtr(showList + OFF_BM(ListDataOffset));
+            if (playerList) {
+              playerList += OFF_BM(ListArrayOffset);
+              uint playerCount = Read<uint>(showList + OFF_BM(ListCountOffset));
+              for (int i = 0; i < playerCount; i++) {
+                long Objaddr = ReadPtr(playerList + (i << 3));
+                if (!Objaddr) continue;
+                if (Read<bool>(Objaddr + OFF_SE(bSameCampType))) continue;
+                if (Read<bool>(Objaddr + OFF_SE(bDeath))) continue;
+                Vector3A pos;
+                vm_readv(Objaddr + OFF_SE(vCachePosition), &pos, sizeof(pos));
+                if (pos.X == 0 && pos.Y == 0 && pos.Z == 0) continue;
+                Vector2 mp = WorldToMinimap({pos.X, pos.Y, pos.Z});
+                MmDot dt{mp.X, mp.Y, Read<int>(Objaddr + OFF_SE(HeroID)),
+                         Read<int>(Objaddr + OFF_SE(Hp)), Read<int>(Objaddr + OFF_SE(HpMax)),
+                         Read<int>(Objaddr + OFF_SE(Level)), 0, 0};
+                mmCache.push_back(dt);
+              }
+            }
           }
-          DrawHeroIcon(draw, ImVec2(minimapPos.X, minimapPos.Y), mHeroID, hp, maxHp,
-                       g_MinimapMonsterSize / 2.0f, false, 0, 0);
+          long showMonster = ReadPtr(a32 + OFF_BM(ShowMonsters));
+          if (showMonster) {
+            long monsterList = ReadPtr(showMonster + OFF_BM(ListDataOffset));
+            if (monsterList) {
+              monsterList += OFF_BM(ListArrayOffset);
+              uint monsterCount = Read<uint>(showMonster + OFF_BM(ListCountOffset));
+              for (int i = 0; i < monsterCount; i++) {
+                long Objaddr = ReadPtr(monsterList + (i << 3));
+                if (!Objaddr) continue;
+                int mType = Read<int>(Objaddr + OFF_SE(iType));
+                int mHeroID = Read<int>(Objaddr + OFF_SE(HeroID));
+                if (Read<bool>(Objaddr + OFF_SE(bDeath))) continue;
+                Vector3A pos;
+                vm_readv(Objaddr + OFF_SE(vCachePosition), &pos, sizeof(pos));
+                if (pos.X == 0 && pos.Y == 0 && pos.Z == 0) continue;
+                Vector2 mp = WorldToMinimap({pos.X, pos.Y, pos.Z});
+                if (mType == 1) {
+                  if (!drawMinionMinimap) continue;
+                  if (Read<bool>(Objaddr + OFF_SE(bSameCampType))) continue;
+                  MmDot dt{mp.X, mp.Y, 0, 0, 0, 0, 1, 2};
+                  mmCache.push_back(dt);
+                  continue;
+                }
+                if (mType == 2 || mType == 5) {
+                  bool isObjective = (mHeroID == 2002 || mHeroID == 2003 || mHeroID == 2110);
+                  if (isObjective) {
+                    if (!MinimapIconLordTurtle) continue;
+                  } else {
+                    if (!drawMonsterMinimap) continue;
+                    if (!(bMonster(mHeroID) || MinimapIconBuff)) continue;
+                  }
+                  MmDot dt{mp.X, mp.Y, mHeroID, Read<int>(Objaddr + OFF_SE(Hp)),
+                           Read<int>(Objaddr + OFF_SE(HpMax)), 0, mType, 1};
+                  mmCache.push_back(dt);
+                }
+              }
+            }
+          }
         }
       }
+    }
+  }
+  for (auto &dt : mmCache) {
+    if (dt.kind == 0) {
+      DrawHeroIcon(draw, ImVec2(dt.x, dt.y), dt.id, dt.hp, dt.maxHp,
+                   g_MinimapHeroSize / 2.0f, true, dt.level, 0);
+    } else if (dt.kind == 1) {
+      DrawHeroIcon(draw, ImVec2(dt.x, dt.y), dt.id, dt.hp, dt.maxHp,
+                   g_MinimapMonsterSize / 2.0f, false, 0, 0);
+    } else {
+      draw->AddCircleFilled(ImVec2(dt.x, dt.y), minionMinimapSize, IM_COL32(255, 0, 0, 200), 8);
+      draw->AddCircle(ImVec2(dt.x, dt.y), minionMinimapSize, IM_COL32(0, 0, 0, 255), 8, 1.0f);
     }
   }
   if (!HideLine) {
