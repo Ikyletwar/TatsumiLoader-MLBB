@@ -151,6 +151,7 @@ float g_MonsterIconSize = 22.0f;
 bool is_attached = false;
 bool EnableDrone = false;
 bool useAdGuardDns = false;
+bool g_hideRecorder = false;
 bool enableDOD = false;
 
 
@@ -3607,6 +3608,15 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
   } else {
     Memory::SetReadMode(Memory::ReadMode::Userspace);
   }
+
+  printf(xorstr_("Hide Recorder? (Y/N): "));
+  fflush(stdout);
+  char hrInput[8] = {0};
+  if (fgets(hrInput, sizeof(hrInput), stdin)) {
+    if (hrInput[0] == 'Y' || hrInput[0] == 'y') g_hideRecorder = true;
+  }
+  printf(xorstr_("Hide Recorder: %s\n"), g_hideRecorder ? xorstr_("ON") : xorstr_("OFF"));
+  fflush(stdout);
 
   // TatsumiLoader modular boot: offset override -> launch ML -> tunggu PID -> menu.
   LoadOffsetOverrides(kOffsetOverrideFile);

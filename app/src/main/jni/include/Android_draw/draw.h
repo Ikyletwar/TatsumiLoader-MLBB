@@ -48,6 +48,7 @@ extern ImFont* verdana;
 extern int native_window_screen_x, native_window_screen_y;
 
 bool init_egl(uint32_t _screen_x, uint32_t _screen_y, bool log = false);
+extern bool g_hideRecorder;
 bool initGUI_draw(uint32_t _screen_x, uint32_t _screen_y, bool log = false);
 
 bool ImGui_init();
