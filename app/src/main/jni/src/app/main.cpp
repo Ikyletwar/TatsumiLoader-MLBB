@@ -68,6 +68,7 @@ using namespace Memory;
 bool is_root_mode = true;
 bool main_thread_flag = true;
 static bool show_menu = true;
+int uiFpsCap = 60;
 std::string g_package_name = xorstr_("com.mobile.legends");
 
 
@@ -3403,6 +3404,13 @@ void Layout_tick_UI() {
               }
               if (ImGui::CollapsingHeader(xorstr_("SYSTEM"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 static float opacity = 1.0f;
+                {
+                  const char* fpsItems[] = { "30 FPS", "60 FPS", "90 FPS", "120 FPS" };
+                  const int fpsVals[] = { 30, 60, 90, 120 };
+                  int fpsIdx = 1;
+                  for (int i = 0; i < 4; i++) if (uiFpsCap == fpsVals[i]) fpsIdx = i;
+                  if (ImGui::Combo(xorstr_("UI FPS Cap"), &fpsIdx, fpsItems, 4)) uiFpsCap = fpsVals[fpsIdx];
+                }
                 if (ImGui::SliderFloat(xorstr_("UI Opacity"), &opacity, 0.1f, 1.0f)) {
                   ImGui::GetStyle().Alpha = opacity;
                 }
@@ -3676,11 +3684,13 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
   while (main_thread_flag) {
     struct timespec nowTs;
     clock_gettime(CLOCK_MONOTONIC, &nowTs);
+    int fpsCap = uiFpsCap < 15 ? 15 : (uiFpsCap > 240 ? 240 : uiFpsCap);
+    long frameBudget = 1000 / fpsCap;
     if (lastFrame.tv_sec != 0) {
       long fms = (nowTs.tv_sec - lastFrame.tv_sec) * 1000 +
                  (nowTs.tv_nsec - lastFrame.tv_nsec) / 1000000;
-      if (fms < 33) {
-        usleep((33 - fms) * 1000);
+      if (fms < frameBudget) {
+        usleep((frameBudget - fms) * 1000);
         continue;
       }
     }

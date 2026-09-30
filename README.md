@@ -396,6 +396,7 @@ Buat backup tiap habis rebuild berhasil.
 - **2026-09-30** — Tab INFO sosmed IG/TikTok; Telegram device report.
 - **2026-09-30** — Push GitHub (LFS) + public.
 - **2026-09-30** — Tab AUTO (retri+skill+spell gabung), auto execute, objective alert akurat (fix uint64, % besar, border kedip, ID 2110), hapus tab RETRI/SKILL.
+- **2026-09-30** — v1.2.1: UI FPS cap 30/60/90/120 (default 60, atasi minimap blink).
 - **2026-09-30** — Single-instance lock + bunuh duplikat (fix exit 2x).
 - **2026-09-30** — Minimap monster toggle (Show Monsters + Lord/Turtle, 15fps radar, guard detached).
 - **2026-09-30** — v1.2.0: overlay 30fps cap, Telegram SSL CAPATH + logcat, retri Nearby-Enemy-Only + range.

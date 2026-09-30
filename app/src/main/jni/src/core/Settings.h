@@ -96,4 +96,5 @@
   X("g_MinimapMonsterSize", g_MinimapMonsterSize)                               \
   X("lingSwordID", lingSwordID)                                                 \
   X("gusionComboDelay", gusionComboDelay) \
-  X("spellSpamMs", spellSpamMs)
+  X("spellSpamMs", spellSpamMs) \
+  X("uiFpsCap", uiFpsCap)
