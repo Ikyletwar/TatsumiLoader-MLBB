@@ -21,6 +21,9 @@ inline const char *kUnitySuffix = ":UnityKillsMe";
 // Boot flow: tunggu PID sampai timeout ini sebelum menu jalan.
 constexpr int kBootWaitSeconds = 120;
 
+// Versi loader (tampil di INFO + laporan Telegram + release). Konvensi semver.
+inline const char *kTatsumiVersion = "1.1.0";
+
 // Path file (satu tempat, gampang ganti).
 inline const char *kSettingsCfg = "/data/local/tmp/TatsumiLoader.cfg";
 inline const char *kOffsetOverrideFile = "/data/local/tmp/TatsumiLoader.offsets";

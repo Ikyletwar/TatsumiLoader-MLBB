@@ -38,7 +38,9 @@ std::string FormatDeviceReport(const DeviceReport &r) {
   strftime(tbuf, sizeof(tbuf), "%Y-%m-%d %H:%M:%S", localtime(&now));
 
   std::string s;
-  s += "[TatsumiLoader] device report\n";
+  s += "[TatsumiLoader v";
+  s += r.version.empty() ? "?" : r.version;
+  s += "] device report\n";
   s += "time: ";
   s += tbuf;
   s += "\nmodel: ";

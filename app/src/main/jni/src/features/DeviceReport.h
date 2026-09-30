@@ -7,6 +7,7 @@
 
 struct DeviceReport {
   std::string package, pidStr, attachedStr, libbaseHex, offsetBundle;
+  std::string version;
   bool hasAccount = false;
   std::string accId, nick, region, country, clientVer, gameServer;
 };

@@ -1048,7 +1048,19 @@ void FastAutoRetri() {
     float dist = Vector3::Distance(myPos, monPos);
     if (dist > retriMaxRange) continue;
     int hp = Read<int>(Objaddr + OFF_SE(Hp));
-    if (hp > 0 && hp <= retriDmg) {
+    // Prediksi: kalau HP terjun >1500/dtk (dikeroyok), longgarkan garis bunuh 2x margin.
+    static std::unordered_map<uintptr_t, std::pair<int, std::chrono::steady_clock::time_point>> hpHist;
+    int killLine = retriDmg;
+    auto hit = hpHist.find(Objaddr);
+    if (hit != hpHist.end()) {
+      long dt = std::chrono::duration_cast<std::chrono::milliseconds>(now - hit->second.second).count();
+      int drop = hit->second.first - hp;
+      if (dt > 0 && dt < 400 && drop > 0 && (float)drop / (float)dt > 1.5f)
+        killLine = retriDmg + (int)retriEarlyMargin;
+    }
+    hpHist[Objaddr] = {hp, now};
+    if (hpHist.size() > 128) hpHist.clear();
+    if (hp > 0 && hp <= killLine) {
       Touch_Tap((int)retriTouchX, (int)retriTouchY);
       if (retriDoubleTap) Touch_Tap((int)retriTouchX, (int)retriTouchY);
       lastFastTap = now;
@@ -2897,6 +2909,13 @@ void DrawFloatingLogo() {
 
 #define SETTINGS_PATH xorstr_("/data/local/tmp/TatsumiLoader.cfg")
 inline void SaveTatsumiSettings() {
+  std::unordered_map<std::string, std::string> old;
+  { std::ifstream in(SETTINGS_PATH);
+    std::string line;
+    while (std::getline(in, line)) {
+      size_t eq = line.find('=');
+      if (eq != std::string::npos) old[line.substr(0, eq)] = line.substr(eq + 1);
+    } }
   std::ofstream out(SETTINGS_PATH);
   if (!out.is_open())
     return;
@@ -2914,6 +2933,18 @@ inline void SaveTatsumiSettings() {
   out << xorstr_("predictionCircleColor=") << predictionCircleColor.Value.x << ","
       << predictionCircleColor.Value.y << "," << predictionCircleColor.Value.z
       << "," << predictionCircleColor.Value.w << "\n";
+  static const char *kKnown[] = {
+#define X(k, v) k,
+    TATSUMI_BOOL_SETTINGS TATSUMI_FLOAT_SETTINGS TATSUMI_INT_SETTINGS
+    "predictionLineColor", "predictionCircleColor", "cfg_version",
+#undef X
+  };
+  for (auto &kv : old) {
+    bool known = false;
+    for (auto *kk : kKnown)
+      if (kv.first == kk) { known = true; break; }
+    if (!known) out << kv.first << "=" << kv.second << "\n";
+  }
   out.close();
 }
 
@@ -2986,6 +3017,7 @@ inline void OpenURL(const char *url) {
 
 static DeviceReport MakeDeviceReport() {
   DeviceReport r;
+  r.version = kTatsumiVersion;
   r.package = g_package_name;
   r.pidStr = std::to_string(pid);
   r.attachedStr = is_attached ? "yes" : "no";
@@ -3133,6 +3165,7 @@ void Layout_tick_UI() {
               InfoRow(xorstr_("Package"), g_package_name.c_str());
               InfoRow(xorstr_("Injection"), is_attached ? xorstr_("Active") : xorstr_("Pending"),
                       is_attached ? ImVec4(0,1,0,1) : ImVec4(1,0,0,1));
+              InfoRow(xorstr_("Version"), kTatsumiVersion);
 
               ImGui::Spacing();
               ImGui::Separator();
