@@ -3733,7 +3733,7 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
         draw->AddText(ImVec2(gusionSkill3X - 20, gusionSkill3Y - 40), IM_COL32_WHITE, xorstr_("G_S3"));
       }
 
-      if (showRetriCircle) {
+      if (showRetriCircle && autoRetribution) {
         draw->AddCircleFilled(ImVec2(retriTouchX, retriTouchY), 18.0f, IM_COL32(255, 255, 255, 180), 16);
         draw->AddCircle(ImVec2(retriTouchX, retriTouchY), 18.0f, IM_COL32(0, 0, 0, 255), 16, 2.0f);
         draw->AddText(ImVec2(retriTouchX - 18, retriTouchY - 34), IM_COL32_WHITE, xorstr_("RETRI"));
