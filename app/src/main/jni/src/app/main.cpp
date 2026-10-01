@@ -968,11 +968,9 @@ inline float DrawCooldownHorizontal(ImDrawList *Draw, float StartX, float Baseli
 
 
 int CalculateRetriDamage(int m_Level) {
-  if (m_Level < 4) {
-    return 520.0 + (80 * m_Level);
-  } else {
-    return 1.5 * (520 + (80 * m_Level));
-  }
+  // Patch 2.1.88+ (konfirmasi 2.2.16): 750 + 150 x Level, true damage.
+  // Upgrade blessing (Ice/Flame/Bloody) TIDAK nambah damage ke creep/Lord.
+  return 750 + (150 * m_Level);
 }
 
 extern uintptr_t Oneself;

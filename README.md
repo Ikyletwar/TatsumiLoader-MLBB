@@ -388,6 +388,7 @@ Buat backup tiap habis rebuild berhasil.
 - **2026-09-30** — Tab INFO sosmed IG/TikTok; Telegram device report.
 - **2026-09-30** — Push GitHub (LFS) + public.
 - **2026-09-30** — Tab AUTO (retri+skill+spell gabung), auto execute, objective alert akurat (fix uint64, % besar, border kedip, ID 2110), hapus tab RETRI/SKILL.
+- **2026-10-01** — v1.2.3: rumus retri patch 2.2.16 (750+150xLv).
 - **2026-10-01** — v1.2.2: retri failsafe target + fallback level + debug on-screen (T/HP/D/LV), boot selalu launch ML.
 - **2026-09-30** — UI mobile-first: window+font responsif, tab AUTO duluan, touch target besar.
 - **2026-09-30** — Diet: cooldown cache 500ms + minimap scan/draw split (scan 10Hz, gambar tiap frame).
