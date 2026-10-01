@@ -3247,8 +3247,22 @@ void Layout_tick_UI() {
         if (winH < 560.0f) winH = 560.0f;
         ImGui::SetNextWindowSize(ImVec2(winW, winH), ImGuiCond_FirstUseEver);
         if (ImGui::Begin(xorstr_("TatsumiLoader-MLBB"), &show_menu)) {
-          if (ImGui::BeginTabBar(xorstr_("##MainTabs"))) {
-            if (ImGui::BeginTabItem(xorstr_("AUTO"))) {
+          // V2: panel samping kiri (tanpa TabBar). currentTab bertahan antar frame.
+          static int currentTab = 0;
+          float sideW = 150.0f * uiUserScale;
+          if (sideW < 120.0f) sideW = 120.0f;
+          if (sideW > 220.0f) sideW = 220.0f;
+          ImGui::BeginChild("Sidebar", ImVec2(sideW, 0), true);
+          if (ImGui::Selectable(xorstr_("AUTO"), currentTab == 0, 0, ImVec2(0, 46))) currentTab = 0;
+          if (ImGui::Selectable(xorstr_("ESP"), currentTab == 1, 0, ImVec2(0, 46))) currentTab = 1;
+          if (ImGui::Selectable(xorstr_("VISUAL"), currentTab == 2, 0, ImVec2(0, 46))) currentTab = 2;
+          if (ImGui::Selectable(xorstr_("ROOM"), currentTab == 3, 0, ImVec2(0, 46))) currentTab = 3;
+          if (ImGui::Selectable(xorstr_("INFO"), currentTab == 4, 0, ImVec2(0, 46))) currentTab = 4;
+          if (ImGui::Selectable(xorstr_("SETTINGS"), currentTab == 5, 0, ImVec2(0, 46))) currentTab = 5;
+          ImGui::EndChild();
+          ImGui::SameLine();
+          ImGui::BeginChild("Content", ImVec2(0, 0), false);
+          if (currentTab == 0) {
               if (ImGui::CollapsingHeader(xorstr_("AUTO RETRI"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Auto Retri"), &autoRetribution);
                 ImGui::CustomCheckbox(xorstr_("Show Circle"), &showRetriCircle);
@@ -3335,9 +3349,8 @@ void Layout_tick_UI() {
                   }
                 }
               }
-              ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem(xorstr_("ESP"))) {
+            if (currentTab == 1) {
               if (ImGui::CollapsingHeader(xorstr_("PLAYER ESP"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("ESP Line"), &drawMLine);
                 ImGui::CustomCheckbox(xorstr_("Hero ESP"), &iconhero);
@@ -3360,9 +3373,8 @@ void Layout_tick_UI() {
                 ImGui::CustomCheckbox(xorstr_("Ulti Ready Alert"), &ultReadyAlert);
                 ImGui::CustomCheckbox(xorstr_("Retri Ready Alert"), &retriReadyAlert);
               }
-              ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem(xorstr_("VISUAL"))) {
+            if (currentTab == 2) {
               if (ImGui::CollapsingHeader(xorstr_("MONSTERS"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Monster ESP"), &drawMonsterName);
                 if (drawMonsterName) {
@@ -3400,13 +3412,11 @@ void Layout_tick_UI() {
                 ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
                 ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
               }
-              ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem(xorstr_("ROOM"))) {
+            if (currentTab == 3) {
               RenderRoomPlayerInfoImGui();
-              ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem(xorstr_("INFO"))) {
+            if (currentTab == 4) {
               ImGui::BeginChild(xorstr_("##InfoBox"), ImVec2(0, 0), false);
 
               
@@ -3488,11 +3498,8 @@ void Layout_tick_UI() {
               ImGui::TextDisabled(xorstr_("Copyright (c) 2026 @TatsumiLoader "));
 
               ImGui::EndChild();
-              ImGui::EndTabItem();
             }
-
-
-            if (ImGui::BeginTabItem(xorstr_("SETTINGS"))) {
+            if (currentTab == 5) {
               if (ImGui::CollapsingHeader(xorstr_("CONFIG"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 if (ImGui::Button(xorstr_("RE-SCAN GAME"), ImVec2(-1, 0))) AttachToGame();
                 ImGui::Text(xorstr_("Status: %s"), is_attached ? xorstr_("READY (Auto-Attached)") : xorstr_("SEARCHING GAME..."));
@@ -3518,10 +3525,8 @@ void Layout_tick_UI() {
                   main_thread_flag = false;
                 }
                 }
-              ImGui::EndTabItem();
             }
-            ImGui::EndTabBar();
-          }
+            ImGui::EndChild();
           ImGui::End();
         }
     }
