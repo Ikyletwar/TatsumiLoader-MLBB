@@ -974,100 +974,97 @@ int CalculateRetriDamage(int m_Level) {
 }
 
 extern uintptr_t Oneself;
-// FAST PATH: jalan di game_worker tiap ~1ms, tidak nunggu FPS overlay.
-void FastAutoRetri() {
-  if (!autoRetribution || !is_attached || libbase == 0 || Oneself == 0)
+extern uintptr_t Oneself;
+// Jalur ASLI (seperti versi awal): dipanggil dari DrawMonster (render thread)
+// dengan selfp + list monster yang sudah tervalidasi. Tanpa gerbang worker,
+// tanpa throttle spam, tanpa prediksi — pilih target TERDEKAT lalu verifikasi
+// ulang HP tepat sebelum tap (on point).
+void ProcessAutoRetribution(uintptr_t selfp, long a32, long monsterListPtr,
+                            int stopMonster) {
+  if (!autoRetribution)
     return;
-  long a1 = ReadPtr(libbase + OFF_BM(BasePtr));
-  if (!a1) return;
-  long a2 = ReadPtr(a1 + OFF_BM(PtrChain1));
-  if (!a2) return;
-  long a32 = ReadPtr((a2 << 1) >> 1);
-  if (!a32) return;
-  uintptr_t selfp = ReadPtr(a32 + OFF_BM(LocalPlayerShow));
-  if (!selfp) return;
-  long monListBase = ReadPtr(a32 + OFF_BM(ShowMonsters));
-  if (!monListBase) return;
-  long monsterPtr = ReadPtr(monListBase + OFF_BM(ListDataOffset)) + OFF_BM(ListArrayOffset);
-  int stopMonster = Read<int>(monListBase + OFF_BM(ListCountOffset));
-  if (stopMonster <= 0 || stopMonster > 64) return;
-  int myLevel = Read<int>(selfp + OFF_SE(Level));
-  if (myLevel <= 0 || myLevel > 30) myLevel = 12; // fallback: offset Level basi, tetap tembak garis menengah
-  g_retriDbgLvl = myLevel;
-  int retriDmg = CalculateRetriDamage(myLevel) + (int)retriEarlyMargin;
-  Vector3 myPos;
-  if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos))) return;
-  // Nearby-enemy-only: skip semua scan monster bila tak ada musuh di radius.
+
+  // Nearby-enemy-only (default OFF = perilaku asli, blok ini tanpa efek).
   if (retriNearbyOnly) {
-    static auto lastNearCheck = std::chrono::steady_clock::now() - std::chrono::seconds(1);
-    static bool lastNearResult = true;
-    auto nowQ = std::chrono::steady_clock::now();
-    long nearAge = std::chrono::duration_cast<std::chrono::milliseconds>(nowQ - lastNearCheck).count();
-    if (nearAge >= 200) {
-      lastNearCheck = nowQ;
-      lastNearResult = false;
-      long pb = ReadPtr(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListDataOffset)) +
-                OFF_BM(ListArrayOffset);
-      int pc = Read<int>(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListCountOffset));
-      if (pc > 0 && pc <= 40) {
-        for (int i = 0; i < pc; i++) {
-          auto e = ReadPtr(pb + (i << 3));
-          if (!e || Read<bool>(e + OFF_SE(bDeath))) continue;
-          if (Read<bool>(e + OFF_SE(bSameCampType))) continue;
-          Vector3 ep;
-          if (!vm_readv(e + OFF_SE(vCachePosition), &ep, sizeof(ep))) continue;
-          if (Vector3::Distance(myPos, ep) <= retriNearbyRange) { lastNearResult = true; break; }
-        }
+    Vector3 myPosQ;
+    if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPosQ, sizeof(myPosQ)))
+      return;
+    bool found = false;
+    long pb = ReadPtr(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListDataOffset)) +
+              OFF_BM(ListArrayOffset);
+    int pc = Read<int>(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListCountOffset));
+    if (pc > 0 && pc <= 40) {
+      for (int i = 0; i < pc; i++) {
+        auto e = ReadPtr(pb + (i << 3));
+        if (!e || Read<bool>(e + OFF_SE(bDeath))) continue;
+        if (Read<bool>(e + OFF_SE(bSameCampType))) continue;
+        Vector3 ep;
+        if (!vm_readv(e + OFF_SE(vCachePosition), &ep, sizeof(ep))) continue;
+        if (Vector3::Distance(myPosQ, ep) <= retriNearbyRange) { found = true; break; }
       }
     }
-    if (!lastNearResult) return;
+    if (!found) return;
   }
-  static auto lastFastTap = std::chrono::steady_clock::now() - std::chrono::milliseconds(1000);
-  auto now = std::chrono::steady_clock::now();
-  long sinceTap = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFastTap).count();
-  if (sinceTap < retriSpamMs) return;
-  g_retriDbgID = 0; g_retriDbgHP = -1; g_retriDbgDist = -1.0f; g_retriDbgDmg = retriDmg;
+
+  int myLevel = Read<int>(selfp + OFF_SE(Level));
+  if (myLevel <= 0 || myLevel > 30) myLevel = 12; // fallback: offset Level basi
+  g_retriDbgLvl = myLevel;
+  // Rumus patch 2.1.88+ (konfirmasi 2.2.16): 750 + 150 x Level + margin awal.
+  int retriDmg = CalculateRetriDamage(myLevel) + (int)retriEarlyMargin;
+  Vector3 myPos;
+  vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos));
+
+  float closestDist = 99999.0f;
+  uintptr_t closestMonsterAddr = 0;
+  int closestMonsterHP = 0;
+  int closestMonsterID = 0;
+
   for (int i = 0; i < stopMonster; i++) {
-    auto Objaddr = ReadPtr(monsterPtr + (i << 3));
-    if (!Objaddr) continue;
-    if (Read<bool>(Objaddr + OFF_SE(bDeath))) continue;
+    auto Objaddr = ReadPtr(monsterListPtr + (i << 3));
+    if (!Objaddr || Read<bool>(Objaddr + OFF_SE(bDeath)))
+      continue;
+
     int mHeroID = Read<int>(Objaddr + OFF_SE(HeroID));
-    bool anyTarget = AutoRetributionRed || AutoRetributionBlue || AutoRetributionLord ||
-                     AutoRetributionTurtle || AutoRetributionCrab || AutoRetributionLito;
-    bool isTarget = false;
-    if (!anyTarget) isTarget = true; // failsafe: master ON tapi kosong = anggap semua
-    else if (AutoRetributionLord && mHeroID == 2002) isTarget = true;
-    else if (AutoRetributionTurtle && (mHeroID == 2003 || mHeroID == 2110)) isTarget = true;
-    else if (AutoRetributionBlue && (mHeroID == 2005 || mHeroID == 2221)) isTarget = true;
-    else if (AutoRetributionLito && mHeroID == 2056) isTarget = true;
-    else if (AutoRetributionCrab && (mHeroID == 2223 || mHeroID == 2222)) isTarget = true;
-    else if (AutoRetributionRed && (mHeroID == 2004 || mHeroID == 2220)) isTarget = true;
-    if (!isTarget) continue;
+    int Health = Read<int>(Objaddr + OFF_SE(Hp));
     Vector3 monPos;
-    if (!vm_readv(Objaddr + OFF_SE(vCachePosition), &monPos, sizeof(monPos))) continue;
+    vm_readv(Objaddr + OFF_SE(vCachePosition), &monPos, sizeof(monPos));
     float dist = Vector3::Distance(myPos, monPos);
-    if (dist > retriMaxRange) continue;
-    int hp = Read<int>(Objaddr + OFF_SE(Hp));
-    // Prediksi: kalau HP terjun >1500/dtk (dikeroyok), longgarkan garis bunuh 2x margin.
-    static std::unordered_map<uintptr_t, std::pair<int, std::chrono::steady_clock::time_point>> hpHist;
-    int killLine = retriDmg;
-    auto hit = hpHist.find(Objaddr);
-    if (hit != hpHist.end()) {
-      long dt = std::chrono::duration_cast<std::chrono::milliseconds>(now - hit->second.second).count();
-      int drop = hit->second.first - hp;
-      if (dt > 0 && dt < 400 && drop > 0 && (float)drop / (float)dt > 1.5f)
-        killLine = retriDmg + (int)retriEarlyMargin;
+
+    bool isTarget = false;
+    if (AutoRetributionLord && mHeroID == 2002)
+      isTarget = true;
+    else if (AutoRetributionTurtle && (mHeroID == 2003 || mHeroID == 2110))
+      isTarget = true;
+    else if (AutoRetributionBlue && (mHeroID == 2005 || mHeroID == 2221))
+      isTarget = true;
+    else if (AutoRetributionLito && mHeroID == 2056)
+      isTarget = true;
+    else if (AutoRetributionCrab && (mHeroID == 2223 || mHeroID == 2222))
+      isTarget = true;
+    else if (AutoRetributionRed && (mHeroID == 2004 || mHeroID == 2220))
+      isTarget = true;
+
+    if (isTarget && dist < closestDist) {
+      closestDist = dist;
+      closestMonsterAddr = Objaddr;
+      closestMonsterHP = Health;
+      closestMonsterID = mHeroID;
     }
-    hpHist[Objaddr] = {hp, now};
-    if (hpHist.size() > 128) hpHist.clear();
-    if (isTarget && dist < g_retriDbgDist - 0.001f || (g_retriDbgDist < 0 && isTarget)) {
-      g_retriDbgID = mHeroID; g_retriDbgHP = hp; g_retriDbgDmg = killLine; g_retriDbgDist = dist;
-    }
-    if (hp > 0 && hp <= killLine) {
-      Touch_Tap((int)retriTouchX, (int)retriTouchY);
-      if (retriDoubleTap) Touch_Tap((int)retriTouchX, (int)retriTouchY);
-      lastFastTap = now;
-      break;
+  }
+
+  g_retriDbgID = closestMonsterID;
+  g_retriDbgHP = (closestMonsterAddr ? closestMonsterHP : -1);
+  g_retriDbgDmg = retriDmg;
+  g_retriDbgDist = (closestMonsterAddr ? closestDist : -1.0f);
+
+  if (closestMonsterAddr != 0 && closestDist <= retriMaxRange) {
+    if (closestMonsterHP > 0 && closestMonsterHP <= retriDmg) {
+      // Verifikasi ulang HP tepat sebelum tap (anti salah baca 1 frame).
+      int realHP = Read<int>(closestMonsterAddr + OFF_SE(Hp));
+      if (realHP > 0 && realHP <= retriDmg) {
+        Touch_Tap((int)retriTouchX, (int)retriTouchY);
+        if (retriDoubleTap) Touch_Tap((int)retriTouchX, (int)retriTouchY);
+      }
     }
   }
 }
@@ -1369,7 +1366,7 @@ void DrawMonster(ImDrawList *Draw) {
           OFF_BM(ListArrayOffset);
   uint stop_monster =
           Read<uint>(ReadPtr(a32 + OFF_BM(ShowMonsters)) + OFF_BM(ListCountOffset));
-  // (dihapus, diganti FastAutoRetri/FastAutoSpell di game_worker 5ms)
+  ProcessAutoRetribution(selfp, a32, monster, stop_monster);
 
   for (int i = 0; i < stop_player; i++) {
     auto Objaddr = ReadPtr(player + ((i << 3) / 1));
@@ -3492,7 +3489,6 @@ __attribute__((visibility("default"))) void *game_worker(void *) {
       if (elapsedMs >= 1 && (msFast >= 5 || msMon >= 50 || msLog >= 5000)) {
       if (msMon >= 50) { MonsterRetribution(); lastMonster = currentTime; }
       if (msFast >= 5) {
-      FastAutoRetri();
       FastAutoSpell(); 
       
 
