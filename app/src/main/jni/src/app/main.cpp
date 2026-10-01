@@ -3282,6 +3282,8 @@ void Layout_tick_UI() {
               if (ImGui::CollapsingHeader(xorstr_("OBJECTIVE ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
                 ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
+              }
+              if (ImGui::CollapsingHeader(xorstr_("ULTI & RETRI ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Ulti Ready Alert"), &ultReadyAlert);
                 ImGui::CustomCheckbox(xorstr_("Retri Ready Alert"), &retriReadyAlert);
               }
