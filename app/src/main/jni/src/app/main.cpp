@@ -339,6 +339,8 @@ float spellY = 850.0f;
 int spellSpamMs = 1000;
 bool drawObjectiveAlert = true;
 float objectiveLowPct = 20.0f;
+bool ultReadyAlert = true;
+bool retriReadyAlert = true;
 void DrawVerticalHealthBar(ImDrawList *Draw, float X, float Y, float Height,
                            float Health, float MaxHealth,
                            bool ShowText = false) {
@@ -932,6 +934,86 @@ void DrawCircularIndicator(ImDrawList *Draw, ImVec2 pos, float size, int cdVal, 
   }
 }
 
+// ===== Notifier ulti + retri musuh (edge detect: dipakai lalu siap) =====
+struct SkillAlert {
+  std::string text;
+  std::string sub;
+  ImU32 color;
+  std::chrono::steady_clock::time_point expiry;
+  std::chrono::steady_clock::time_point born;
+};
+static std::vector<SkillAlert> g_skillAlerts;
+static std::unordered_map<int, bool> g_ultSeenCd;   // heroId -> ulti pernah terlihat CD
+static std::unordered_map<int, bool> g_retriSeenCd; // heroId -> retri pernah terlihat CD
+static const long kSkillAlertMs = 4000;
+
+// Samakan normalisasi ID dengan SpellIcons_loader (2002/20021 -> 20020).
+inline int NormSpellId(int id) {
+  if (id > 20000) return (id / 10) * 10;
+  if (id > 2000) return id * 10;
+  if (id > 0 && id < 100) return 20000 + (id * 10);
+  return id;
+}
+inline bool IsRetriSpell(int id) { return NormSpellId(id) == 20020; }
+
+static void PushSkillAlert(const std::string &text, const std::string &sub, ImU32 color) {
+  auto now = std::chrono::steady_clock::now();
+  for (auto &a : g_skillAlerts) {
+    if (a.text == text && now < a.expiry) {
+      a.expiry = now + std::chrono::milliseconds(kSkillAlertMs);
+      return;
+    }
+  }
+  g_skillAlerts.push_back({text, sub, color, now + std::chrono::milliseconds(kSkillAlertMs), now});
+  if (g_skillAlerts.size() > 5) g_skillAlerts.erase(g_skillAlerts.begin());
+}
+
+static void UpdateUltRetriAlerts(int heroId, const CoolDownData &cd) {
+  if (heroId <= 0 || heroId >= 1000) return;
+  // Ulti = skill3 (S3). Bunyi hanya bila SEBELUMNYA terlihat dipakai (transisi CD -> siap).
+  if (ultReadyAlert) {
+    if (cd.skill3 > 0) g_ultSeenCd[heroId] = true;
+    else if (g_ultSeenCd[heroId]) {
+      g_ultSeenCd[heroId] = false;
+      PushSkillAlert(std::string("ULTI READY: ") + HeroToString(heroId), xorstr_("ultimate musuh siap"), IM_COL32(255, 180, 0, 255));
+    }
+  }
+  // Retri: hanya musuh yang battle spell-nya retribution.
+  if (retriReadyAlert && cd.spellId > 0 && IsRetriSpell(cd.spellId)) {
+    if (cd.spell > 0) g_retriSeenCd[heroId] = true;
+    else if (g_retriSeenCd[heroId]) {
+      g_retriSeenCd[heroId] = false;
+      PushSkillAlert(std::string("RETRI READY: ") + HeroToString(heroId), xorstr_("retri musuh siap"), IM_COL32(0, 200, 255, 255));
+    }
+  }
+}
+
+static void DrawSkillAlerts(ImDrawList *draw) {
+  if (!draw) return;
+  auto now = std::chrono::steady_clock::now();
+  g_skillAlerts.erase(std::remove_if(g_skillAlerts.begin(), g_skillAlerts.end(),
+      [&](const SkillAlert &a){ return now >= a.expiry; }), g_skillAlerts.end());
+  if (g_skillAlerts.empty()) return;
+  float centerX = abs_ScreenX * Alert_PosX;
+  float centerY = abs_ScreenY * Alert_PosY;
+  float s = Alert_Scale;
+  float boxW = 360.0f * s, boxH = 54.0f * s, gap = 8.0f * s;
+  float y = centerY + 35.0f * s + 14.0f * s; // di bawah box objective
+  size_t n = g_skillAlerts.size() > 4 ? 4 : g_skillAlerts.size();
+  for (size_t i = 0; i < n; i++) {
+    const auto &a = g_skillAlerts[g_skillAlerts.size() - n + i];
+    ImVec2 bMin(centerX - boxW * 0.5f, y), bMax(centerX + boxW * 0.5f, y + boxH);
+    draw->AddRectFilled(bMin, bMax, IM_COL32(15, 15, 15, 230), 10.0f * s);
+    long ageMs = std::chrono::duration_cast<std::chrono::milliseconds>(now - a.born).count();
+    bool blink = ageMs < 1000 && ((ageMs / 250) % 2 == 0);
+    draw->AddRect(bMin, bMax, blink ? IM_COL32(255, 255, 255, 255) : a.color, 10.0f * s, 0, 2.5f * s);
+    ImVec2 tSize = ImGui::CalcTextSize(a.text.c_str());
+    draw->AddText(NULL, 19.0f * s, ImVec2(centerX - tSize.x * s * 0.5f, y + 8.0f * s), IM_COL32(255, 255, 255, 255), a.text.c_str());
+    ImVec2 sSize = ImGui::CalcTextSize(a.sub.c_str());
+    draw->AddText(NULL, 13.0f * s, ImVec2(centerX - sSize.x * s * 0.5f, y + 30.0f * s), IM_COL32(200, 200, 200, 255), a.sub.c_str());
+  }
+}
+
 inline float DrawCooldownHorizontal(ImDrawList *Draw, float StartX, float BaselineY, const CoolDownData &cd, int HeroID, int hp, int maxHp, int level, bool showSkills, bool showHero, bool showSpell) {
   float size = Cooldown_Size;
   float hSize = g_HeroIconSize;
@@ -1433,6 +1515,8 @@ void DrawMonster(ImDrawList *Draw) {
     }
 
     float finalY = Res.Y + Avatar_OffsetY;
+    // Notifier ulti + retri (jalan walau tampilan cooldown dimatikan).
+    if (HeroID < 1000) UpdateUltRetriAlerts(HeroID, getCoolDown(Objaddr));
 
     
     bool showHeroContent = (iconhero || ESP_Player_Cooldown);
@@ -3198,6 +3282,8 @@ void Layout_tick_UI() {
               if (ImGui::CollapsingHeader(xorstr_("OBJECTIVE ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
                 ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
+                ImGui::CustomCheckbox(xorstr_("Ulti Ready Alert"), &ultReadyAlert);
+                ImGui::CustomCheckbox(xorstr_("Retri Ready Alert"), &retriReadyAlert);
               }
               if (ImGui::CollapsingHeader(xorstr_("LING AUTO SWORD"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Auto Sword"), &autoSwordLing);
@@ -3446,6 +3532,7 @@ void Layout_tick_UI() {
   }
 
   DrawMonster(ImGui::GetForegroundDrawList());
+  DrawSkillAlerts(ImGui::GetForegroundDrawList());
 
 }
 __attribute__((visibility("default"))) void *pid_monitor(void *) {

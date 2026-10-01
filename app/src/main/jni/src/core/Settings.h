@@ -43,6 +43,8 @@
   X("autoSwordLing", autoSwordLing) \
   X("autoSpellExecute", autoSpellExecute) \
   X("drawObjectiveAlert", drawObjectiveAlert) \
+  X("ultReadyAlert", ultReadyAlert) \
+  X("retriReadyAlert", retriReadyAlert) \
   X("retriNearbyOnly", retriNearbyOnly) \
   X("drawMonsterMinimap", drawMonsterMinimap) \
   X("useAdGuardDns", useAdGuardDns)
