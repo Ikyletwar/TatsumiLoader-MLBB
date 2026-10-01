@@ -314,12 +314,12 @@ void Touch_Tap(int x, int y) {
 }
 bool lastRetriTriggered[20] = {false};
 bool autoRetribution = false;
-bool AutoRetributionRed = false;
-bool AutoRetributionBlue = false;
-bool AutoRetributionLord = false;
-bool AutoRetributionTurtle = false;
-bool AutoRetributionCrab = false;
-bool AutoRetributionLito = false;
+bool AutoRetributionRed = true;
+bool AutoRetributionBlue = true;
+bool AutoRetributionLord = true;
+bool AutoRetributionTurtle = true;
+bool AutoRetributionCrab = true;
+bool AutoRetributionLito = true;
 float retriTouchX = 1575;
 float retriTouchY = 661;
 // ADVANCE RETRI TUNING (instant mode)
@@ -328,6 +328,8 @@ float retriMaxRange = 8.5f;        // sedikit longgar dari 8.0 bawaan game
 int retriSpamMs = 80;              // jeda minimal antar tap (anti flood, tapi retry cepat)
 bool retriDoubleTap = true;        // tap 2x per trigger biar tidak miss
 bool retriNearbyOnly = false;
+int g_retriDbgHP = -1, g_retriDbgDmg = 0, g_retriDbgID = 0, g_retriDbgLvl = 0;
+float g_retriDbgDist = -1.0f;
 float retriNearbyRange = 12.0f;
 bool autoSpellExecute = false;
 float spellExecPct = 12.0f;
@@ -992,7 +994,8 @@ void FastAutoRetri() {
   int stopMonster = Read<int>(monListBase + OFF_BM(ListCountOffset));
   if (stopMonster <= 0 || stopMonster > 64) return;
   int myLevel = Read<int>(selfp + OFF_SE(Level));
-  if (myLevel <= 0 || myLevel > 30) return;
+  if (myLevel <= 0 || myLevel > 30) myLevel = 12; // fallback: offset Level basi, tetap tembak garis menengah
+  g_retriDbgLvl = myLevel;
   int retriDmg = CalculateRetriDamage(myLevel) + (int)retriEarlyMargin;
   Vector3 myPos;
   if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos))) return;
@@ -1025,13 +1028,17 @@ void FastAutoRetri() {
   auto now = std::chrono::steady_clock::now();
   long sinceTap = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFastTap).count();
   if (sinceTap < retriSpamMs) return;
+  g_retriDbgID = 0; g_retriDbgHP = -1; g_retriDbgDist = -1.0f; g_retriDbgDmg = retriDmg;
   for (int i = 0; i < stopMonster; i++) {
     auto Objaddr = ReadPtr(monsterPtr + (i << 3));
     if (!Objaddr) continue;
     if (Read<bool>(Objaddr + OFF_SE(bDeath))) continue;
     int mHeroID = Read<int>(Objaddr + OFF_SE(HeroID));
+    bool anyTarget = AutoRetributionRed || AutoRetributionBlue || AutoRetributionLord ||
+                     AutoRetributionTurtle || AutoRetributionCrab || AutoRetributionLito;
     bool isTarget = false;
-    if (AutoRetributionLord && mHeroID == 2002) isTarget = true;
+    if (!anyTarget) isTarget = true; // failsafe: master ON tapi kosong = anggap semua
+    else if (AutoRetributionLord && mHeroID == 2002) isTarget = true;
     else if (AutoRetributionTurtle && (mHeroID == 2003 || mHeroID == 2110)) isTarget = true;
     else if (AutoRetributionBlue && (mHeroID == 2005 || mHeroID == 2221)) isTarget = true;
     else if (AutoRetributionLito && mHeroID == 2056) isTarget = true;
@@ -1055,6 +1062,9 @@ void FastAutoRetri() {
     }
     hpHist[Objaddr] = {hp, now};
     if (hpHist.size() > 128) hpHist.clear();
+    if (isTarget && dist < g_retriDbgDist - 0.001f || (g_retriDbgDist < 0 && isTarget)) {
+      g_retriDbgID = mHeroID; g_retriDbgHP = hp; g_retriDbgDmg = killLine; g_retriDbgDist = dist;
+    }
     if (hp > 0 && hp <= killLine) {
       Touch_Tap((int)retriTouchX, (int)retriTouchY);
       if (retriDoubleTap) Touch_Tap((int)retriTouchX, (int)retriTouchY);
@@ -3735,6 +3745,11 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
         draw->AddCircleFilled(ImVec2(retriTouchX, retriTouchY), 18.0f, IM_COL32(255, 255, 255, 180), 16);
         draw->AddCircle(ImVec2(retriTouchX, retriTouchY), 18.0f, IM_COL32(0, 0, 0, 255), 16, 2.0f);
         draw->AddText(ImVec2(retriTouchX - 18, retriTouchY - 34), IM_COL32_WHITE, xorstr_("RETRI"));
+        {
+          char rdbg[96];
+          snprintf(rdbg, sizeof(rdbg), "T:%d HP:%d/%d D:%.1f LV:%d", g_retriDbgID, g_retriDbgHP, g_retriDbgDmg, g_retriDbgDist, g_retriDbgLvl);
+          draw->AddText(ImVec2(retriTouchX - 60, retriTouchY + 24), IM_COL32(0, 255, 150, 255), rdbg);
+        }
       }
       if (autoSpellExecute) {
         draw->AddCircleFilled(ImVec2(spellX, spellY), 18.0f, IM_COL32(0, 200, 255, 180), 16);

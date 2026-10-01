@@ -97,17 +97,10 @@ pid_t WaitForMLPID(int timeoutSec) {
 }
 
 bool BootEnsureGame() {
-  pid_t p = pollOnce();
-  if (p <= 0) {
-    // Game belum jalan -> jalankan dulu.
-    if (!LaunchMLBB())
-      return false;
-    p = WaitForMLPID(kBootWaitSeconds);
-  } else {
-    printf("[boot] ML already running: %s pid=%d\n", g_package_name.c_str(),
-           p);
-    fflush(stdout);
-  }
+  // Selalu launch (bring to front) walau PID sudah kedetek.
+  if (!LaunchMLBB())
+    return false;
+  pid_t p = WaitForMLPID(kBootWaitSeconds);
   if (p > 0) {
     pid = p;
     AttachToGame(); // set g_pid/libbase/is_attached
