@@ -3279,14 +3279,7 @@ void Layout_tick_UI() {
                   ImGui::SliderInt(xorstr_("Spell Spam Ms"), &spellSpamMs, 300, 5000);
                 }
               }
-              if (ImGui::CollapsingHeader(xorstr_("OBJECTIVE ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
-                ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("ULTI & RETRI ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Ulti Ready Alert"), &ultReadyAlert);
-                ImGui::CustomCheckbox(xorstr_("Retri Ready Alert"), &retriReadyAlert);
-              }
+
               if (ImGui::CollapsingHeader(xorstr_("LING AUTO SWORD"), ImGuiTreeNodeFlags_DefaultOpen)) {
                 ImGui::CustomCheckbox(xorstr_("Enable Auto Sword"), &autoSwordLing);
 
@@ -3363,6 +3356,10 @@ void Layout_tick_UI() {
                 ImGui::CustomCheckbox(xorstr_("Enable Drone"), &EnableDrone);
                 if (EnableDrone) ImGui::SliderFloat(xorstr_("FOV"), &FieldView, -9.0f, -1.0f);
               }
+              if (ImGui::CollapsingHeader(xorstr_("ULTI & RETRI ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Ulti Ready Alert"), &ultReadyAlert);
+                ImGui::CustomCheckbox(xorstr_("Retri Ready Alert"), &retriReadyAlert);
+              }
               ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem(xorstr_("VISUAL"))) {
@@ -3398,6 +3395,10 @@ void Layout_tick_UI() {
                 ImGui::SliderFloat(xorstr_("Alert X (%)"), &Alert_PosX, 0.0f, 1.0f);
                 ImGui::SliderFloat(xorstr_("Alert Y (%)"), &Alert_PosY, 0.0f, 1.0f);
                 ImGui::SliderFloat(xorstr_("Alert Scale"), &Alert_Scale, 0.5f, 3.0f);
+              }
+              if (ImGui::CollapsingHeader(xorstr_("OBJECTIVE ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
+                ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
+                ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
               }
               ImGui::EndTabItem();
             }
