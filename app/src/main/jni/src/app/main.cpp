@@ -3040,15 +3040,33 @@ inline void LoadTatsumiSettings() {
       return it != cfg.end() ? it->second : empty;
   };
   try {
+// LOAD_* dibungkus try/catch PER KEY: 1 baris cfg korup tidak boleh
+// menggugurkan semua setting sesudahnya (dulu throw lolos ke catch(...)
+// luar dan sisa tabel tidak ke-load).
 #define LOAD_BOOL(k, v)                                                        \
-  if (!getVal(k).empty())                                                      \
-    v = (getVal(k) == "1");
+  {                                                                            \
+    try {                                                                      \
+      if (!getVal(k).empty())                                                  \
+        v = (getVal(k) == "1");                                                \
+    } catch (...) {                                                            \
+    }                                                                          \
+  }
 #define LOAD_FLOAT(k, v)                                                       \
-  if (!getVal(k).empty())                                                      \
-    v = std::stof(getVal(k));
+  {                                                                            \
+    try {                                                                      \
+      if (!getVal(k).empty())                                                  \
+        v = std::stof(getVal(k));                                              \
+    } catch (...) {                                                            \
+    }                                                                          \
+  }
 #define LOAD_INT(k, v)                                                         \
-  if (!getVal(k).empty())                                                      \
-    v = std::stoi(getVal(k));
+  {                                                                            \
+    try {                                                                      \
+      if (!getVal(k).empty())                                                  \
+        v = std::stoi(getVal(k));                                              \
+    } catch (...) {                                                            \
+    }                                                                          \
+  }
 #define X(k, v) LOAD_BOOL(xorstr_(k), v);
     TATSUMI_BOOL_SETTINGS
 #undef X

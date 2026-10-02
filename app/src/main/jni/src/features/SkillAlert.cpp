@@ -10,11 +10,8 @@
 #include "imgui.h"
 #include "ui/Shell.h"
 #include "utils/xorstr.hpp"
-// Deklarasi saja: definisinya ada di Includes/GUI_Custom.cpp, path header-nya
-// tidak ada di LOCAL_C_INCLUDES jadi tidak boleh di-#include.
-namespace ImGui {
-bool CustomCheckbox(const char *label, bool *v);
-}
+// CustomCheckbox versi lama sudah tidak dipakai (RenderSettings sekarang
+// memakai UI::Toggle); deklarasi dihapus supaya tidak menyesatkan.
 // Header-nya tidak bisa di-#include: ToString.h tidak punya include sendiri dan
 // memakai to_string tanpa namespace, jadi hanya jalan kalau dipaksakan dari
 // using-namespace ::std. Jadi cukup deklarasi, definisinya tetap milik main.cpp.

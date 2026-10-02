@@ -28,6 +28,11 @@ namespace UI {
 // ------------------------------------------------------------------
 inline ImU32 Col(const ImVec4 &v) { return ImGui::GetColorU32(v); }
 
+// Clamp/max float lokal (ImMax/ImClamp hanya ada di imgui_internal.h,
+// shell ini sengaja hanya pakai API publik).
+inline float FMax(float a, float b) { return a > b ? a : b; }
+inline float FClamp(float x, float a, float b) { return x < a ? a : (x > b ? b : x); }
+
 // ID unik per-widget. Pakai alamat variabel supaya 2 slider dengan label
 // sama tidak saling berebut ID.
 inline void MakeId(char *buf, size_t n, const char *label, const void *owner) {
@@ -115,7 +120,8 @@ inline void DrawNavIcon(int kind, ImVec2 c, float s, ImU32 col) {
 // ------------------------------------------------------------------
 inline bool NavItem(int kind, const char *label, bool active) {
   const float w = ImGui::GetContentRegionAvail().x;
-  const float h = 44.0f;
+  // Tinggi item ikut font supaya teks tidak luber di UI scale besar.
+  const float h = FMax(44.0f, Fh() + 18.0f);
   ImVec2 p = ImGui::GetCursorScreenPos();
 
   char id[96];
@@ -147,12 +153,24 @@ inline void Sidebar(int *tab, float width, const char *version, bool attached) {
   static const char *kNames[6] = {"AUTO", "ESP", "VISUAL", "ROOM", "INFO", "SETTINGS"};
   static const int kIcons[6] = {0, 1, 2, 3, 4, 5};
 
+  // Lebar sidebar menyesuaikan label terpanjang + ikon, supaya tidak ada
+  // teks kepotong di UI scale besar. Caller boleh memberi lebar minimum.
+  {
+    float need = 42.0f + 16.0f;
+    for (int i = 0; i < 6; i++) {
+      need = FMax(need, 42.0f + ImGui::CalcTextSize(kNames[i]).x + 16.0f);
+    }
+    if (width < need) width = need;
+    if (width > 300.0f) width = 300.0f;
+  }
+
   ImGui::BeginChild("##Sidebar", ImVec2(width, 0), ImGuiChildFlags_Border);
 
-  // ---- logo ----
+  // ---- logo (kotak ikut skala font) ----
   {
     ImVec2 p = ImGui::GetCursorScreenPos();
-    const float box = 30.0f;
+    const float fh0 = Fh();
+    const float box = FMax(30.0f, fh0 + 12.0f);
     ImDrawList *dl = ImGui::GetWindowDrawList();
     dl->AddRectFilled(p, ImVec2(p.x + box, p.y + box), Col(Shade(0.85f, 1.0f)), 8.0f);
     const float fh = Fh();
@@ -174,16 +192,18 @@ inline void Sidebar(int *tab, float width, const char *version, bool attached) {
   }
 
   // ---- sisipkan ruang kosong, pin status ke bawah ----
+  // Tinggi pill ikut font; jangan Dummy dengan nilai negatif (layar pendek).
   {
+    const float pillH = FMax(28.0f, Fh() + 12.0f);
     const float avail = ImGui::GetContentRegionAvail().y;
-    const float need = 62.0f;
+    const float need = pillH + Fh() + 16.0f;
     if (avail > need) ImGui::Dummy(ImVec2(0, avail - need));
   }
 
   // ---- status pill ----
   {
     const float w = ImGui::GetContentRegionAvail().x;
-    const float h = 28.0f;
+    const float h = FMax(28.0f, Fh() + 12.0f);
     ImVec2 p = ImGui::GetCursorScreenPos();
     ImDrawList *dl = ImGui::GetWindowDrawList();
     dl->AddRectFilled(p, ImVec2(p.x + w, p.y + h), Col(Neutral(0.16f, 0.70f)), 8.0f);
@@ -305,8 +325,17 @@ inline void EndSection() { ImGui::Unindent(18.0f); }
 inline bool Toggle(const char *label, bool *v, const char *sub = nullptr) {
   const float w = ImGui::GetContentRegionAvail().x;
   const float fh = Fh();
-  const float ph = 26.0f, pw = 48.0f;              // ukuran pill
-  const float h = sub && sub[0] ? fh * 2.0f + 16.0f : ph + 10.0f;
+  // Pill ikut skala font supaya tetap proporsional di UI scale besar.
+  const float ph = FClamp(fh * 0.95f, 26.0f, 44.0f);
+  const float pw = ph * 1.9f;
+
+  // Sub-label boleh wrap: ukur dulu tinggi terbungkusnya supaya tidak
+  // menimpa widget di bawahnya.
+  float subH = 0.0f;
+  if (sub && sub[0]) {
+    subH = ImGui::CalcTextSize(sub, nullptr, false, w - 8.0f).y + 2.0f;
+  }
+  const float h = (sub && sub[0]) ? fh + 4.0f + subH + 8.0f : ph + 10.0f;
 
   ImVec2 p = ImGui::GetCursorScreenPos();
   char id[96];
@@ -330,12 +359,15 @@ inline bool Toggle(const char *label, bool *v, const char *sub = nullptr) {
   dl->AddCircleFilled(ImVec2(kcx, pp.y + ph * 0.5f), kr,
                       *v ? Col(ImVec4(0.06f, 0.06f, 0.07f, 1.0f)) : Col(Neutral(0.70f)));
 
-  // label + sub
+  // label + sub (sub digambar dengan wrap, tingginya sudah dicadangkan)
   ImGui::SetCursorScreenPos(ImVec2(p.x, sub && sub[0] ? p.y : p.y + (h - fh) * 0.5f));
   ImGui::TextColored(*v ? Bright() : Neutral(0.88f), "%s", label);
   if (sub && sub[0]) {
     ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + fh + 2.0f));
+    // PushTextWrapPos minta koordinat lokal window, bukan screen.
+    ImGui::PushTextWrapPos(p.x + w - 8.0f - ImGui::GetWindowPos().x);
     ImGui::TextDisabled("%s", sub);
+    ImGui::PopTextWrapPos();
   }
 
   ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h));
@@ -348,12 +380,17 @@ inline bool Toggle(const char *label, bool *v, const char *sub = nullptr) {
 // ------------------------------------------------------------------
 inline bool SliderF(const char *label, float *v, float mn, float mx,
                     const char *unit = nullptr, const char *fmt = "%.1f") {
-  if (mx <= mn) return false;
+  if (mx <= mn || !v) return false;
+  // cfg korup (mis. "nan" hasil edit tangan) tidak boleh meracuni draw list:
+  // stof("nan") tidak throw tapi menghasilkan NaN -> vertex NaN.
+  if (!std::isfinite(*v)) *v = mn;
   const float w = ImGui::GetContentRegionAvail().x;
   const float fh = Fh();
   const float chipH = fh + 8.0f;
-  const float railH = 5.0f;
-  const float hitH = chipH + 10.0f + 24.0f;  // label/chip + jeda + rail sentuh
+  // Rail + knob ikut skala font; area sentuh rail minimal 24px buat jempol.
+  const float railH = FClamp(fh * 0.18f, 5.0f, 9.0f);
+  const float railHit = FMax(24.0f, fh + 8.0f);
+  const float hitH = chipH + 10.0f + railHit;
 
   ImVec2 p = ImGui::GetCursorScreenPos();
   char id[96];
@@ -377,7 +414,13 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
   ImGui::TextColored(Bright(), "%s", buf);
 
   ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + (chipH - fh) * 0.5f));
-  ImGui::TextColored(Neutral(0.88f), "%s", label);
+  // Label dipotong sebelum chip nilai supaya tidak menimpa angka.
+  {
+    const float labelMax = p.x + w - vw - 16.0f - 12.0f;
+    ImGui::PushClipRect(ImVec2(p.x, p.y - 2.0f), ImVec2(labelMax, p.y + chipH + 2.0f), true);
+    ImGui::TextColored(Neutral(0.88f), "%s", label);
+    ImGui::PopClipRect();
+  }
 
   // --- rail ---
   const float ry = p.y + chipH + 10.0f + railH * 0.5f;
@@ -388,7 +431,7 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
   t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
   dl->AddRectFilled(ImVec2(rx0, ry - railH * 0.5f), ImVec2(rx0 + (rx1 - rx0) * t, ry + railH * 0.5f),
                     Col(Base()), railH * 0.5f);
-  const float kr = 9.0f;
+  const float kr = FClamp(fh * 0.35f, 9.0f, 16.0f);
   dl->AddCircleFilled(ImVec2(rx0 + (rx1 - rx0) * t, ry), kr, Col(Bright()));
 
   // --- interaksi ---
@@ -463,11 +506,15 @@ inline void Note(const char *txt) {
   ImVec2 p = ImGui::GetCursorScreenPos();
   const float w = ImGui::GetContentRegionAvail().x;
   const float fh = Fh();
-  const float h = fh + 12.0f;
+  // Ukur tinggi terbungkus dulu supaya teks panjang tidak menimpa widget bawah.
+  const float th = ImGui::CalcTextSize(txt ? txt : "", nullptr, false, w - 20.0f).y;
+  const float h = th + 12.0f;
   ImDrawList *dl = ImGui::GetWindowDrawList();
   dl->AddRectFilled(p, ImVec2(p.x + 3.0f, p.y + h), Col(Faint()), 2.0f);
   ImGui::SetCursorScreenPos(ImVec2(p.x + 12.0f, p.y + 6.0f));
-  ImGui::TextDisabled("%s", txt);
+  ImGui::PushTextWrapPos(p.x + w - 8.0f - ImGui::GetWindowPos().x);
+  ImGui::TextDisabled("%s", txt ? txt : "");
+  ImGui::PopTextWrapPos();
   ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + h));
 }
 
