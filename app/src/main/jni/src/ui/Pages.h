@@ -34,9 +34,34 @@ inline void Auto() {
     UI::SliderI(xorstr_("Spam Interval"), &retriSpamMs, 30, 300, "ms");
     UI::Note(xorstr_("BEHAVIOUR"));
     UI::Toggle(xorstr_("Double Tap"), &retriDoubleTap);
-    UI::Toggle(xorstr_("Nearby Enemy Only"), &retriNearbyOnly);
-    if (retriNearbyOnly) {
-      UI::SliderF(xorstr_("Nearby Range"), &retriNearbyRange, 3.0f, 30.0f, "m");
+    UI::Note(xorstr_("NEARBY PER MONSTER"));
+    UI::Toggle(xorstr_("Lord Nearby"), &retriNearbyLord,
+               xorstr_("Retri Lord hanya kalau ada musuh dekat"));
+    if (retriNearbyLord) {
+      UI::SliderF(xorstr_("Lord Range"), &retriNearbyRangeLord, 3.0f, 30.0f, "m");
+    }
+    UI::Toggle(xorstr_("Turtle Nearby"), &retriNearbyTurtle,
+               xorstr_("Retri Turtle hanya kalau ada musuh dekat"));
+    if (retriNearbyTurtle) {
+      UI::SliderF(xorstr_("Turtle Range"), &retriNearbyRangeTurtle, 3.0f, 30.0f, "m");
+    }
+    UI::Toggle(xorstr_("Red Nearby"), &retriNearbyRed,
+               xorstr_("Retri Red buff hanya kalau ada musuh dekat"));
+    if (retriNearbyRed) {
+      UI::SliderF(xorstr_("Red Range"), &retriNearbyRangeRed, 3.0f, 30.0f, "m");
+    }
+    UI::Toggle(xorstr_("Blue Nearby"), &retriNearbyBlue,
+               xorstr_("Retri Blue buff hanya kalau ada musuh dekat"));
+    if (retriNearbyBlue) {
+      UI::SliderF(xorstr_("Blue Range"), &retriNearbyRangeBlue, 3.0f, 30.0f, "m");
+    }
+    UI::Toggle(xorstr_("Crab Nearby"), &retriNearbyCrab);
+    if (retriNearbyCrab) {
+      UI::SliderF(xorstr_("Crab Range"), &retriNearbyRangeCrab, 3.0f, 30.0f, "m");
+    }
+    UI::Toggle(xorstr_("Lito Nearby"), &retriNearbyLito);
+    if (retriNearbyLito) {
+      UI::SliderF(xorstr_("Lito Range"), &retriNearbyRangeLito, 3.0f, 30.0f, "m");
     }
     UI::EndSection();
   }

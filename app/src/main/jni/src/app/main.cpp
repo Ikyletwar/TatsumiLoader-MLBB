@@ -340,10 +340,24 @@ float retriEarlyMargin = 180.0f;   // tap lebih awal utk kompensasi network/tick
 float retriMaxRange = 8.5f;        // sedikit longgar dari 8.0 bawaan game
 int retriSpamMs = 80;              // jeda minimal antar tap (anti flood, tapi retry cepat)
 bool retriDoubleTap = true;        // tap 2x per trigger biar tidak miss
-bool retriNearbyOnly = false;
+// Nearby-per-monster (v2.3.0): tiap tipe punya toggle + jarak sendiri.
+// Menggantikan retriNearbyOnly/retriNearbyRange global (lihat migrasi cfg
+// di LoadTatsumiSettings). Urutan tipe: 0=Red 1=Blue 2=Lord 3=Turtle
+// 4=Crab 5=Lito - dipakai RetriTypeOf() di bawah.
+bool retriNearbyRed = false;
+bool retriNearbyBlue = false;
+bool retriNearbyLord = false;
+bool retriNearbyTurtle = false;
+bool retriNearbyCrab = false;
+bool retriNearbyLito = false;
 int g_retriDbgHP = -1, g_retriDbgDmg = 0, g_retriDbgID = 0, g_retriDbgLvl = 0;
 float g_retriDbgDist = -1.0f;
-float retriNearbyRange = 12.0f;
+float retriNearbyRangeRed = 12.0f;
+float retriNearbyRangeBlue = 12.0f;
+float retriNearbyRangeLord = 12.0f;
+float retriNearbyRangeTurtle = 12.0f;
+float retriNearbyRangeCrab = 12.0f;
+float retriNearbyRangeLito = 12.0f;
 bool autoSpellExecute = false;
 float spellExecPct = 12.0f;
 float spellRange = 5.0f;
@@ -993,6 +1007,59 @@ int CalculateRetriDamage(int m_Level) {
 
 extern uintptr_t Oneself;
 extern uintptr_t Oneself;
+// Indeks tipe monster untuk nearby-per-monster: 0=Red 1=Blue 2=Lord
+// 3=Turtle 4=Crab 5=Lito, -1 = bukan target retri. Daftar ID disalin dari
+// rantai isTarget di ProcessAutoRetribution supaya tidak pernah beda.
+static int RetriTypeOf(int heroId) {
+  if (heroId == 2004 || heroId == 2220) return 0;          // Red
+  if (heroId == 2005 || heroId == 2221) return 1;          // Blue
+  if (heroId == 2002) return 2;                            // Lord
+  if (heroId == 2003 || heroId == 2110) return 3;          // Turtle
+  if (heroId == 2223 || heroId == 2222) return 4;          // Crab
+  if (heroId == 2056) return 5;                            // Lito
+  return -1;
+}
+static bool RetriNearbyOn(int t) {
+  switch (t) {
+    case 0: return retriNearbyRed;
+    case 1: return retriNearbyBlue;
+    case 2: return retriNearbyLord;
+    case 3: return retriNearbyTurtle;
+    case 4: return retriNearbyCrab;
+    case 5: return retriNearbyLito;
+    default: return false;
+  }
+}
+static float RetriNearbyRange(int t) {
+  switch (t) {
+    case 0: return retriNearbyRangeRed;
+    case 1: return retriNearbyRangeBlue;
+    case 2: return retriNearbyRangeLord;
+    case 3: return retriNearbyRangeTurtle;
+    case 4: return retriNearbyRangeCrab;
+    case 5: return retriNearbyRangeLito;
+    default: return 12.0f;
+  }
+}
+// true = ada musuh hidup beda camp dalam radius (meter) dari posisi sendiri.
+static bool EnemyWithin(uintptr_t selfp, long a32, float range) {
+  Vector3 myPosQ;
+  if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPosQ, sizeof(myPosQ)))
+    return false;
+  long pb = ReadPtr(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListDataOffset)) +
+            OFF_BM(ListArrayOffset);
+  int pc = Read<int>(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListCountOffset));
+  if (pc <= 0 || pc > 40) return false;
+  for (int i = 0; i < pc; i++) {
+    auto e = ReadPtr(pb + (i << 3));
+    if (!e || Read<bool>(e + OFF_SE(bDeath))) continue;
+    if (Read<bool>(e + OFF_SE(bSameCampType))) continue;
+    Vector3 ep;
+    if (!vm_readv(e + OFF_SE(vCachePosition), &ep, sizeof(ep))) continue;
+    if (Vector3::Distance(myPosQ, ep) <= range) return true;
+  }
+  return false;
+}
 // Jalur ASLI (seperti versi awal): dipanggil dari DrawMonster (render thread)
 // dengan selfp + list monster yang sudah tervalidasi. Tanpa gerbang worker,
 // tanpa throttle spam, tanpa prediksi — pilih target TERDEKAT lalu verifikasi
@@ -1001,28 +1068,6 @@ void ProcessAutoRetribution(uintptr_t selfp, long a32, long monsterListPtr,
                             int stopMonster) {
   if (!autoRetribution)
     return;
-
-  // Nearby-enemy-only (default OFF = perilaku asli, blok ini tanpa efek).
-  if (retriNearbyOnly) {
-    Vector3 myPosQ;
-    if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPosQ, sizeof(myPosQ)))
-      return;
-    bool found = false;
-    long pb = ReadPtr(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListDataOffset)) +
-              OFF_BM(ListArrayOffset);
-    int pc = Read<int>(ReadPtr(a32 + OFF_BM(ShowPlayers)) + OFF_BM(ListCountOffset));
-    if (pc > 0 && pc <= 40) {
-      for (int i = 0; i < pc; i++) {
-        auto e = ReadPtr(pb + (i << 3));
-        if (!e || Read<bool>(e + OFF_SE(bDeath))) continue;
-        if (Read<bool>(e + OFF_SE(bSameCampType))) continue;
-        Vector3 ep;
-        if (!vm_readv(e + OFF_SE(vCachePosition), &ep, sizeof(ep))) continue;
-        if (Vector3::Distance(myPosQ, ep) <= retriNearbyRange) { found = true; break; }
-      }
-    }
-    if (!found) return;
-  }
 
   int myLevel = Read<int>(selfp + OFF_SE(Level));
   if (myLevel <= 0 || myLevel > 30) myLevel = 12; // fallback: offset Level basi
@@ -1074,6 +1119,13 @@ void ProcessAutoRetribution(uintptr_t selfp, long a32, long monsterListPtr,
   g_retriDbgHP = (closestMonsterAddr ? closestMonsterHP : -1);
   g_retriDbgDmg = retriDmg;
   g_retriDbgDist = (closestMonsterAddr ? closestDist : -1.0f);
+
+  // Nearby-per-monster: aturan mengikuti TIPE target terdekat, bukan global.
+  if (closestMonsterAddr != 0) {
+    const int t = RetriTypeOf(closestMonsterID);
+    if (t >= 0 && RetriNearbyOn(t) && !EnemyWithin(selfp, a32, RetriNearbyRange(t)))
+      return;
+  }
 
   if (closestMonsterAddr != 0 && closestDist <= retriMaxRange) {
     if (closestMonsterHP > 0 && closestMonsterHP <= retriDmg) {
@@ -3076,6 +3128,21 @@ inline void LoadTatsumiSettings() {
 #define X(k, v) LOAD_INT(xorstr_(k), v);
     TATSUMI_INT_SETTINGS
 #undef X
+    // Migrasi cfg lama (<=v2.2.x): nearby global -> salin ke 6 profil monster.
+    // Hanya jalan kalau key baru belum ada (setting per-monster menang).
+    if (cfg.count("retriNearbyOnly") && !cfg.count("retriNearbyLord")) {
+      const bool v = cfg["retriNearbyOnly"] == "1";
+      retriNearbyRed = retriNearbyBlue = retriNearbyLord = retriNearbyTurtle =
+          retriNearbyCrab = retriNearbyLito = v;
+    }
+    if (cfg.count("retriNearbyRange") && !cfg.count("retriNearbyRangeLord")) {
+      try {
+        const float r = std::stof(cfg["retriNearbyRange"]);
+        retriNearbyRangeRed = retriNearbyRangeBlue = retriNearbyRangeLord =
+            retriNearbyRangeTurtle = retriNearbyRangeCrab = retriNearbyRangeLito = r;
+      } catch (...) {
+      }
+    }
     if (!getVal(xorstr_("predictionLineColor")).empty()) {
       std::istringstream iss(getVal(xorstr_("predictionLineColor")));
       char c;

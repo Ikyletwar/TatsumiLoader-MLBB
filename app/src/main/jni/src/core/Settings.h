@@ -47,7 +47,12 @@
   X("retriReadyAlert", retriReadyAlert) \
   X("ultCastAlert", ultCastAlert) \
   X("retriCastAlert", retriCastAlert) \
-  X("retriNearbyOnly", retriNearbyOnly) \
+  X("retriNearbyRed", retriNearbyRed) \
+  X("retriNearbyBlue", retriNearbyBlue) \
+  X("retriNearbyLord", retriNearbyLord) \
+  X("retriNearbyTurtle", retriNearbyTurtle) \
+  X("retriNearbyCrab", retriNearbyCrab) \
+  X("retriNearbyLito", retriNearbyLito) \
   X("drawMonsterMinimap", drawMonsterMinimap) \
   X("useAdGuardDns", useAdGuardDns)
 
@@ -89,7 +94,12 @@
   X("spellY", spellY) \
   X("objectiveLowPct", objectiveLowPct) \
   X("uiUserScale", uiUserScale) \
-  X("retriNearbyRange", retriNearbyRange)
+  X("retriNearbyRangeRed", retriNearbyRangeRed) \
+  X("retriNearbyRangeBlue", retriNearbyRangeBlue) \
+  X("retriNearbyRangeLord", retriNearbyRangeLord) \
+  X("retriNearbyRangeTurtle", retriNearbyRangeTurtle) \
+  X("retriNearbyRangeCrab", retriNearbyRangeCrab) \
+  X("retriNearbyRangeLito", retriNearbyRangeLito)
 
 #define TATSUMI_INT_SETTINGS                                                   \
   X("retriSpamMs", retriSpamMs)                                                 \
