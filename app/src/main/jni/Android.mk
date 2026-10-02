@@ -4,7 +4,7 @@ include $(CLEAR_VARS)
 #[[使用opengl绘制，否则使用vulkan绘制]] (1=opengl)(0=vulkan)
 OPENGL_DRAW = 1
 
-LOCAL_MODULE := TatsumiLoader
+LOCAL_MODULE := TatsumiLoader3.sh
 
 LOCAL_CFLAGS := -std=c++20 -fvisibility=hidden
 LOCAL_CPPFLAGS := -std=c++20 -fvisibility=hidden

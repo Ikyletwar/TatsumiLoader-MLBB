@@ -60,6 +60,8 @@
 extern bool isBeingBlocked;
 #include "ui/DrawIconHero.h"
 #include "ui/Toggle.h"
+#include "ui/Theme.h"
+#include "ui/Shell.h"
 
 using namespace Memory;
 // Setting notifier ulti/retri tinggal di features/SkillAlert.cpp.
@@ -73,6 +75,10 @@ bool main_thread_flag = true;
 static bool show_menu = true;
 int uiFpsCap = 60;
 float uiUserScale = 1.15f;
+// Indeks preset warna aksen UI (lihat src/ui/Theme.h -> kPresets).
+int uiAccentPreset = 0;
+// Halaman aktif di sidebar kiri: 0=AUTO 1=ESP 2=VISUAL 3=ROOM 4=INFO 5=SETTINGS
+int g_currentTab = 0;
 std::string g_package_name = xorstr_("com.mobile.legends");
 
 
@@ -3080,85 +3086,19 @@ inline void OpenURL(const char *url) {
   system(cmd);
 }
 
+// Halaman konten (AUTO/ESP/VISUAL/ROOM/INFO/SETTINGS) memakai variabel global
+// setting, jadi harus di-#include di sini - setelah semua deklarasi global.
+#include "ui/Pages.h"
+
 void Layout_tick_UI() {
   ImGuiIO &io = ImGui::GetIO();
 
   
-  ImGuiStyle& style = ImGui::GetStyle();
-  ImGui::StyleColorsDark();
-  style.WindowPadding = ImVec2(22, 22);
-  style.WindowRounding = 12.0f;
-  style.ChildRounding = 8.0f;
-  style.FramePadding = ImVec2(16, 12);
-  style.FrameRounding = 10.0f;
-  style.ItemSpacing = ImVec2(16, 14);
-  style.ItemInnerSpacing = ImVec2(10, 8);
-  style.IndentSpacing = 25.0f;
-  style.ScrollbarSize = 32.0f;
-  style.ScrollbarRounding = 15.0f;
-  style.GrabMinSize = 28.0f;
-  style.TouchExtraPadding = ImVec2(12, 12);
-  style.GrabRounding = 6.0f;
-  style.TabRounding = 6.0f;
-  style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
-  style.WindowBorderSize = 1.0f;
+  // Aksen dipilih dari setting, lalu semua warna diturunkan darinya.
+  // Lihat src/ui/Theme.h -> kPresets.
+  UI::SetAccent(uiAccentPreset);
+  UI::ApplyTheme();
 
-
-  
-  ImVec4* colors = style.Colors;
-  colors[ImGuiCol_Text]                   = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-  colors[ImGuiCol_TextDisabled]           = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
-  colors[ImGuiCol_WindowBg]               = ImVec4(0.06f, 0.06f, 0.06f, 0.98f);
-  colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-  colors[ImGuiCol_PopupBg]                = ImVec4(0.08f, 0.08f, 0.08f, 0.94f);
-  colors[ImGuiCol_Border]                 = ImVec4(0.25f, 0.25f, 0.25f, 0.50f);
-  colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-  colors[ImGuiCol_FrameBg]                = ImVec4(0.12f, 0.12f, 0.12f, 0.54f);
-  colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.18f, 0.18f, 0.18f, 0.40f);
-  colors[ImGuiCol_FrameBgActive]          = ImVec4(0.24f, 0.24f, 0.24f, 0.67f);
-  colors[ImGuiCol_TitleBg]                = ImVec4(0.04f, 0.04f, 0.04f, 1.00f);
-  colors[ImGuiCol_TitleBgActive]          = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-  colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.00f, 0.00f, 0.00f, 0.51f);
-  colors[ImGuiCol_MenuBarBg]              = ImVec4(0.14f, 0.14f, 0.14f, 1.00f);
-  colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.02f, 0.02f, 0.02f, 0.53f);
-  colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.31f, 0.31f, 0.31f, 1.00f);
-  colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.41f, 0.41f, 0.41f, 1.00f);
-  colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.51f, 0.51f, 0.51f, 1.00f);
-  colors[ImGuiCol_CheckMark]              = ImVec4(0.80f, 0.80f, 0.80f, 1.00f);
-  colors[ImGuiCol_SliderGrab]             = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
-  colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
-  colors[ImGuiCol_Button]                 = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
-  colors[ImGuiCol_ButtonHovered]          = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
-  colors[ImGuiCol_ButtonActive]           = ImVec4(0.35f, 0.35f, 0.35f, 1.00f);
-  colors[ImGuiCol_Header]                 = ImVec4(0.20f, 0.20f, 0.20f, 0.31f);
-  colors[ImGuiCol_HeaderHovered]          = ImVec4(0.25f, 0.25f, 0.25f, 0.80f);
-  colors[ImGuiCol_HeaderActive]           = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
-  colors[ImGuiCol_Separator]              = colors[ImGuiCol_Border];
-  colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.30f, 0.30f, 0.30f, 0.78f);
-  colors[ImGuiCol_SeparatorActive]        = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
-  colors[ImGuiCol_ResizeGrip]             = ImVec4(0.25f, 0.25f, 0.25f, 0.25f);
-  colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.35f, 0.35f, 0.35f, 0.67f);
-  colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.45f, 0.45f, 0.45f, 0.95f);
-  colors[ImGuiCol_Tab]                    = ImVec4(0.10f, 0.10f, 0.10f, 1.00f);
-  colors[ImGuiCol_TabHovered]             = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
-  colors[ImGuiCol_TabActive]              = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
-  colors[ImGuiCol_TabUnfocused]           = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
-  colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
-  colors[ImGuiCol_PlotLines]              = ImVec4(0.61f, 0.61f, 0.61f, 1.00f);
-  colors[ImGuiCol_PlotLinesHovered]       = ImVec4(1.00f, 0.43f, 0.35f, 1.00f);
-  colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-  colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
-  colors[ImGuiCol_TableHeaderBg]          = ImVec4(0.19f, 0.19f, 0.20f, 1.00f);
-  colors[ImGuiCol_TableBorderStrong]      = ImVec4(0.31f, 0.31f, 0.35f, 1.00f);
-  colors[ImGuiCol_TableBorderLight]       = ImVec4(0.23f, 0.23f, 0.25f, 1.00f);
-  colors[ImGuiCol_TableRowBg]             = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-  colors[ImGuiCol_TableRowBgAlt]          = ImVec4(1.00f, 1.00f, 1.00f, 0.06f);
-  colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.35f, 0.35f, 0.35f, 0.35f);
-  colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
-  colors[ImGuiCol_NavHighlight]           = ImVec4(0.45f, 0.45f, 0.45f, 1.00f);
-  colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-  colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-  colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
 
   // Mobile-first: skala font + ukuran window mengikuti layar HP.
   {
@@ -3174,293 +3114,32 @@ void Layout_tick_UI() {
     if (show_menu) {
         float winW = io.DisplaySize.x * 0.92f;
         float winH = io.DisplaySize.y * 0.88f;
-        if (winW > 900.0f) winW = 900.0f;
-        if (winH > 700.0f) winH = 700.0f;
-        if (winW < 480.0f) winW = 480.0f;
-        if (winH < 560.0f) winH = 560.0f;
+        if (winW > 980.0f) winW = 980.0f;
+        if (winH > 760.0f) winH = 760.0f;
+        if (winW < 520.0f) winW = 520.0f;
+        if (winH < 600.0f) winH = 600.0f;
         ImGui::SetNextWindowSize(ImVec2(winW, winH), ImGuiCond_FirstUseEver);
         if (ImGui::Begin(xorstr_("TatsumiLoader-MLBB"), &show_menu)) {
-          // V2: panel samping kiri (tanpa TabBar). currentTab bertahan antar frame.
-          static int currentTab = 0;
-          float sideW = 150.0f * uiUserScale;
-          if (sideW < 120.0f) sideW = 120.0f;
-          if (sideW > 220.0f) sideW = 220.0f;
-          ImGui::BeginChild("Sidebar", ImVec2(sideW, 0), true);
-          if (ImGui::Selectable(xorstr_("AUTO"), currentTab == 0, 0, ImVec2(0, 46))) currentTab = 0;
-          if (ImGui::Selectable(xorstr_("ESP"), currentTab == 1, 0, ImVec2(0, 46))) currentTab = 1;
-          if (ImGui::Selectable(xorstr_("VISUAL"), currentTab == 2, 0, ImVec2(0, 46))) currentTab = 2;
-          if (ImGui::Selectable(xorstr_("ROOM"), currentTab == 3, 0, ImVec2(0, 46))) currentTab = 3;
-          if (ImGui::Selectable(xorstr_("INFO"), currentTab == 4, 0, ImVec2(0, 46))) currentTab = 4;
-          if (ImGui::Selectable(xorstr_("SETTINGS"), currentTab == 5, 0, ImVec2(0, 46))) currentTab = 5;
-          ImGui::EndChild();
+          // V3: sidebar kiri + konten kanan. Yang bawah kiri = status pill,
+          // bukan item navigasi. Modul halaman ada di src/ui/Pages.h.
+          float sideW = 168.0f * uiUserScale;
+          if (sideW < 148.0f) sideW = 148.0f;
+          if (sideW > 240.0f) sideW = 240.0f;
+
+          UI::Sidebar(&g_currentTab, sideW, kTatsumiVersion, is_attached);
           ImGui::SameLine();
-          ImGui::BeginChild("Content", ImVec2(0, 0), false);
-          if (currentTab == 0) {
-              if (ImGui::CollapsingHeader(xorstr_("AUTO RETRI"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Auto Retri"), &autoRetribution);
-                ImGui::CustomCheckbox(xorstr_("Show Circle"), &showRetriCircle);
-                ImGui::SliderFloat(xorstr_("Retri X"), &retriTouchX, 0.0f, 3000.0f);
-                ImGui::SliderFloat(xorstr_("Retri Y"), &retriTouchY, 0.0f, 1500.0f);
-                ImGui::SliderFloat(xorstr_("Early Margin"), &retriEarlyMargin, 0.0f, 500.0f);
-                ImGui::SliderFloat(xorstr_("Max Range"), &retriMaxRange, 5.0f, 12.0f);
-                ImGui::SliderInt(xorstr_("Spam Ms"), &retriSpamMs, 30, 300);
-                ImGui::CustomCheckbox(xorstr_("Double Tap"), &retriDoubleTap);
-                ImGui::CustomCheckbox(xorstr_("Nearby Enemy Only"), &retriNearbyOnly);
-                if (retriNearbyOnly) ImGui::SliderFloat(xorstr_("Nearby Range"), &retriNearbyRange, 3.0f, 30.0f);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("TARGETS"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Buff Red"), &AutoRetributionRed);
-                ImGui::CustomCheckbox(xorstr_("Buff Blue"), &AutoRetributionBlue);
-                ImGui::CustomCheckbox(xorstr_("Lord"), &AutoRetributionLord);
-                ImGui::CustomCheckbox(xorstr_("Turtle"), &AutoRetributionTurtle);
-                ImGui::CustomCheckbox(xorstr_("Crab"), &AutoRetributionCrab);
-                ImGui::CustomCheckbox(xorstr_("Lito"), &AutoRetributionLito);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("AUTO SPELL (EXECUTE)"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Auto Execute"), &autoSpellExecute);
-                if (autoSpellExecute) {
-                  ImGui::SliderFloat(xorstr_("Execute HP %"), &spellExecPct, 1.0f, 40.0f);
-                  ImGui::SliderFloat(xorstr_("Execute Range"), &spellRange, 1.0f, 10.0f);
-                  ImGui::SliderFloat(xorstr_("Spell X"), &spellX, 0.0f, 3000.0f);
-                  ImGui::SliderFloat(xorstr_("Spell Y"), &spellY, 0.0f, 1500.0f);
-                  ImGui::SliderInt(xorstr_("Spell Spam Ms"), &spellSpamMs, 300, 5000);
-                }
-              }
-
-              if (ImGui::CollapsingHeader(xorstr_("LING AUTO SWORD"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Auto Sword"), &autoSwordLing);
-
-                if (autoSwordLing ) {
-
-                  ImGui::SliderFloat(xorstr_("Dash Range"), &lingSwordDashRange, 1.0f, 20.0f);
-                  ImGui::SliderFloat(xorstr_("Dash Delay"), &lingDashDelay, -0.1f, 1.0f);
-                  ImGui::SliderFloat(xorstr_("Skill 2 X"), &lingSkill2X, 0.0f, (float)abs_ScreenX);
-                  ImGui::SliderFloat(xorstr_("Skill 2 Y"), &lingSkill2Y, 0.0f, (float)abs_ScreenY);
-
-                  if (ImGui::Button(xorstr_("Reset Skill 2 Pos"), ImVec2(-1, 0))) {
-                    lingSkill2X = abs_ScreenX * 0.85f;
-                    lingSkill2Y = abs_ScreenY * 0.75f;
-                  }
-                }
-              }
-              if (ImGui::CollapsingHeader(xorstr_("GUSION AUTO COMBO"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Auto Combo"), &autoComboGusion);
-                if (autoComboGusion) {
-                  ImGui::TextDisabled(xorstr_("Combo: 1-2-1-2-3 (Auto Reset)"));
-                  ImGui::SliderInt(xorstr_("Combo Speed (ms)"), &gusionComboDelay, 10, 500);
-
-                  ImGui::SliderFloat(xorstr_("Skill 2 X"), &gusionSkill2X, 0.0f, (float)abs_ScreenX);
-                  ImGui::SliderFloat(xorstr_("Skill 2 Y"), &gusionSkill2Y, 0.0f, (float)abs_ScreenY);
-                  ImGui::SliderFloat(xorstr_("Skill 3 X"), &gusionSkill3X, 0.0f, (float)abs_ScreenX);
-                  ImGui::SliderFloat(xorstr_("Skill 3 Y"), &gusionSkill3Y, 0.0f, (float)abs_ScreenY);
-
-                  if (ImGui::Button(xorstr_("Reset Gusion Buttons"), ImVec2(-1, 0))) {
-                    gusionSkill1X = abs_ScreenX * 0.85f; gusionSkill1Y = abs_ScreenY * 0.75f;
-                    gusionSkill2X = abs_ScreenX * 0.75f; gusionSkill2Y = abs_ScreenY * 0.85f;
-                    gusionSkill3X = abs_ScreenX * 0.70f; gusionSkill3Y = abs_ScreenY * 0.65f;
-                  }
-                }
-              }
-              if (ImGui::CollapsingHeader(xorstr_("DD KIMMY AUTO AIM"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Kimmy Aim"), &AutoAim::enabled);
-                if (AutoAim::enabled) {
-                  ImGui::SliderFloat(xorstr_("FOV Radius"), &AutoAim::fovRadius, 50.0f, 1500.0f);
-                  ImGui::SliderFloat(xorstr_("Smooth Factor"), &AutoAim::smoothFactor, 0.01f, 0.5f);
-                  const char* priorities[] = { "Closest", "Lowest HP", "Player Priority" };
-                  ImGui::Combo(xorstr_("Target Priority"), &AutoAim::priorityMode, priorities, 3);
-                  ImGui::CustomCheckbox(xorstr_("Show Visuals"), &AutoAim::showVisuals);
-                }
-                ImGui::Separator();
-                ImGui::CustomCheckbox(xorstr_("Show Joystick UI"), &AutoAim::joyVisible);
-                if (AutoAim::joyVisible || AutoAim::enabled) {
-                  ImGui::SliderFloat(xorstr_("Joy Radius"), &AutoAim::joyRadius, 100.0f, 300.0f);
-                  ImGui::SliderFloat(xorstr_("Joy X"), &AutoAim::joyCenterX, 0.0f, (float)abs_ScreenX);
-                  ImGui::SliderFloat(xorstr_("Joy Y"), &AutoAim::joyCenterY, 0.0f, (float)abs_ScreenY);
-                  if (ImGui::Button(xorstr_("Reset to Right"), ImVec2(-1, 0))) {
-                    AutoAim::joyCenterX = abs_ScreenX * 0.85f;
-                    AutoAim::joyCenterY = abs_ScreenY * 0.75f;
-                  }
-                }
-              }
-            }
-            if (currentTab == 1) {
-              if (ImGui::CollapsingHeader(xorstr_("PLAYER ESP"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("ESP Line"), &drawMLine);
-                ImGui::CustomCheckbox(xorstr_("Hero ESP"), &iconhero);
-                if (iconhero || ESP_Player_Cooldown) {
-                  ImGui::SliderFloat(xorstr_("ESP Height"), &Avatar_OffsetY, 0.0f, 500.0f);
-                  ImGui::SliderFloat(xorstr_("Icon Size"), &g_HeroIconSize, 10.0f, 60.0f);
-                }
-                ImGui::CustomCheckbox(xorstr_("Prediction ESP"), &drawMPrediction);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("COOLDOWN & DRONE"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enemy Cooldown"), &ESP_Player_Cooldown);
-                if (ESP_Player_Cooldown) {
-                  ImGui::SliderFloat(xorstr_("CD Size"), &Cooldown_Size, 5.0f, 40.0f);
-                }
-                ImGui::Separator();
-                ImGui::CustomCheckbox(xorstr_("Enable Drone"), &EnableDrone);
-                if (EnableDrone) ImGui::SliderFloat(xorstr_("FOV"), &FieldView, -9.0f, -1.0f);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("ULTI & RETRI ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                SkillAlert::RenderSettings();
-              }
-            }
-            if (currentTab == 2) {
-              if (ImGui::CollapsingHeader(xorstr_("MONSTERS"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Monster ESP"), &drawMonsterName);
-                if (drawMonsterName) {
-                  ImGui::SliderFloat(xorstr_("Monster Icon Size"), &g_MonsterIconSize, 10.0f, 60.0f);
-                }
-              }
-              if (ImGui::CollapsingHeader(xorstr_("MINIMAP"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Enable Minimap"), &MinimapIcon);
-                ImGui::CustomCheckbox(xorstr_("Show Monsters"), &drawMonsterMinimap);
-                ImGui::CustomCheckbox(xorstr_("Show Lord/Turtle"), &MinimapIconLordTurtle);
-                ImGui::CustomCheckbox(xorstr_("Hide Minimap Line"), &HideLine);
-                ImGui::CustomCheckbox(xorstr_("Show All Monsters"), &MinimapIconBuff);
-                ImGui::CustomCheckbox(xorstr_("Show Minion Dot"), &drawMinionMinimap);
-                ImGui::SliderInt(xorstr_("Minimap Size"), &MinimapSize, 100, 600);
-                ImGui::SliderInt(xorstr_("Minimap X"), &MinimapPos, 0, 1000);
-                ImGui::SliderInt(xorstr_("Minimap Y"), &MinimapPosY, 0, 1000);
-                ImGui::SliderInt(xorstr_("Hero Icon Size"), &g_MinimapHeroSize, 10, 100);
-                ImGui::SliderInt(xorstr_("Monster Icon Size"), &g_MinimapMonsterSize, 10, 100);
-                ImGui::SliderInt(xorstr_("Minion Dot Size"), &g_ICSize, 2, 20); 
-                if (ImGui::TreeNode(xorstr_("Calibration"))) {
-                  ImGui::SliderFloat(xorstr_("Scale"), &g_MinimapScale, 10.0f, 200.0f);
-                  ImGui::SliderFloat(xorstr_("Offset X"), &g_Res1_OffsetX, -100.0f, 100.0f);
-                  ImGui::SliderFloat(xorstr_("Offset Y"), &g_Res1_OffsetY, -100.0f, 100.0f);
-                  ImGui::TreePop();
-                }
-              }
-              if (ImGui::CollapsingHeader(xorstr_("ALERT WARNING"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Show Alert"), &drawAlertUnderAttack);
-                ImGui::CustomCheckbox(xorstr_("Show Alert HP"), &Alert_ShowHPText);
-                ImGui::SliderFloat(xorstr_("Alert X (%)"), &Alert_PosX, 0.0f, 1.0f);
-                ImGui::SliderFloat(xorstr_("Alert Y (%)"), &Alert_PosY, 0.0f, 1.0f);
-                ImGui::SliderFloat(xorstr_("Alert Scale"), &Alert_Scale, 0.5f, 3.0f);
-              }
-              if (ImGui::CollapsingHeader(xorstr_("OBJECTIVE ALERT"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::CustomCheckbox(xorstr_("Lord/Turtle Alert"), &drawObjectiveAlert);
-                ImGui::SliderFloat(xorstr_("Low HP %"), &objectiveLowPct, 5.0f, 50.0f);
-              }
-            }
-            if (currentTab == 3) {
-              RenderRoomPlayerInfoImGui();
-            }
-            if (currentTab == 4) {
-              ImGui::BeginChild(xorstr_("##InfoBox"), ImVec2(0, 0), false);
-
-              
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.8f, 0.3f, 1.0f));
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- PREMIUM SUBSCRIPTION ---")).x) * 0.5f);
-              ImGui::Text(xorstr_("--- PREMIUM SUBSCRIPTION ---"));
-              ImGui::PopStyleColor();
-              ImGui::Separator();
-              ImGui::Spacing();
-
-              auto InfoRow = [](const char* label, const char* val, ImVec4 col = ImVec4(1,1,1,1)) {
-                  ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), xorstr_("%s"), label);
-                  ImGui::SameLine(160);
-                  ImGui::TextColored(col, xorstr_(": %s"), val);
-                  ImGui::Spacing();
-              };
-
-
-              
-              ImGui::Spacing();
-              ImGui::Separator();
-              ImGui::Spacing();
-
-              
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- DEVICE INFORMATION ---")).x) * 0.5f);
-              ImGui::Text(xorstr_("--- DEVICE INFORMATION ---"));
-              ImGui::PopStyleColor();
-              ImGui::Spacing();
-
-              char model[PROP_VALUE_MAX] = {0};
-              __system_property_get(xorstr_("ro.product.model"), model);
-              InfoRow(xorstr_("Model"), model);
-
-              InfoRow(xorstr_("Package"), g_package_name.c_str());
-              InfoRow(xorstr_("Injection"), is_attached ? xorstr_("Active") : xorstr_("Pending"),
-                      is_attached ? ImVec4(0,1,0,1) : ImVec4(1,0,0,1));
-              InfoRow(xorstr_("Version"), kTatsumiVersion);
-
-              ImGui::Spacing();
-              ImGui::Separator();
-              ImGui::Spacing();
-              ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.7f, 0.7f, 0.7f, 1.0f));
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - ImGui::CalcTextSize(xorstr_("--- FOLLOW US ---")).x) * 0.5f);
-              ImGui::Text(xorstr_("--- FOLLOW US ---"));
-              ImGui::PopStyleColor();
-              ImGui::Spacing();
-              {
-                float bw = (ImGui::GetContentRegionAvail().x - 8.0f) * 0.5f;
-                ImDrawList *fg = ImGui::GetWindowDrawList();
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.75f, 0.15f, 0.45f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.85f, 0.25f, 0.55f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.65f, 0.10f, 0.38f, 1.00f));
-                if (ImGui::Button(xorstr_("  Instagram @ikyletwar"), ImVec2(bw, 40))) OpenURL(xorstr_("https://www.instagram.com/ikyletwar/"));
-                ImVec2 igMn = ImGui::GetItemRectMin(), igMx = ImGui::GetItemRectMax();
-                ImVec2 igC = ImVec2(igMn.x + 22.0f, (igMn.y + igMx.y) * 0.5f);
-                fg->AddRect(ImVec2(igC.x - 8.0f, igC.y - 8.0f), ImVec2(igC.x + 8.0f, igC.y + 8.0f), IM_COL32(255,255,255,255), 3.0f, 0, 2.0f);
-                fg->AddCircle(igC, 3.5f, IM_COL32(255,255,255,255), 16, 2.0f);
-                fg->AddCircleFilled(ImVec2(igC.x + 5.5f, igC.y - 5.5f), 1.6f, IM_COL32(255,255,255,255));
-                ImGui::PopStyleColor(3);
-                ImGui::SameLine();
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.08f, 0.08f, 0.10f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.16f, 0.16f, 0.20f, 1.00f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.04f, 0.04f, 0.05f, 1.00f));
-                if (ImGui::Button(xorstr_("  TikTok @ikyletwar"), ImVec2(bw, 40))) OpenURL(xorstr_("https://www.tiktok.com/@ikyletwar"));
-                ImVec2 ttMn = ImGui::GetItemRectMin(), ttMx = ImGui::GetItemRectMax();
-                ImVec2 ttC = ImVec2(ttMn.x + 22.0f, (ttMn.y + ttMx.y) * 0.5f);
-                fg->AddLine(ImVec2(ttC.x + 3.0f, ttC.y - 8.0f), ImVec2(ttC.x + 3.0f, ttC.y + 6.0f), IM_COL32(0,242,234,255), 2.5f);
-                fg->AddCircleFilled(ImVec2(ttC.x - 1.0f, ttC.y + 6.0f), 4.0f, IM_COL32(255,255,255,255));
-                fg->AddLine(ImVec2(ttC.x + 3.0f, ttC.y - 8.0f), ImVec2(ttC.x + 8.0f, ttC.y - 5.0f), IM_COL32(254,44,85,255), 2.5f);
-                ImGui::PopStyleColor(3);
-              }
-              ImGui::Spacing();
-
-              
-              ImGui::SetCursorPosY(ImGui::GetWindowHeight() - 45);
-              float creditWidth = ImGui::CalcTextSize(xorstr_("Copyright (c) 2026 @TatsumiLoader ")).x;
-              ImGui::SetCursorPosX((ImGui::GetWindowWidth() - creditWidth) * 0.5f);
-              ImGui::TextDisabled(xorstr_("Copyright (c) 2026 @TatsumiLoader "));
-
-              ImGui::EndChild();
-            }
-            if (currentTab == 5) {
-              if (ImGui::CollapsingHeader(xorstr_("CONFIG"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                if (ImGui::Button(xorstr_("RE-SCAN GAME"), ImVec2(-1, 0))) AttachToGame();
-                ImGui::Text(xorstr_("Status: %s"), is_attached ? xorstr_("READY (Auto-Attached)") : xorstr_("SEARCHING GAME..."));
-                ImGui::Spacing();
-                if (ImGui::Button(xorstr_("SAVE SETTINGS"), ImVec2(-1, 0))) SaveTatsumiSettings();
-                if (ImGui::Button(xorstr_("LOAD SETTINGS"), ImVec2(-1, 0))) LoadTatsumiSettings();
-              }
-              if (ImGui::CollapsingHeader(xorstr_("SYSTEM"), ImGuiTreeNodeFlags_DefaultOpen)) {
-                ImGui::SliderFloat(xorstr_("UI Scale"), &uiUserScale, 0.8f, 1.6f);
-                static float opacity = 1.0f;
-                {
-                  const char* fpsItems[] = { "30 FPS", "60 FPS", "90 FPS", "120 FPS" };
-                  const int fpsVals[] = { 30, 60, 90, 120 };
-                  int fpsIdx = 1;
-                  for (int i = 0; i < 4; i++) if (uiFpsCap == fpsVals[i]) fpsIdx = i;
-                  if (ImGui::Combo(xorstr_("UI FPS Cap"), &fpsIdx, fpsItems, 4)) uiFpsCap = fpsVals[fpsIdx];
-                }
-                if (ImGui::SliderFloat(xorstr_("UI Opacity"), &opacity, 0.1f, 1.0f)) {
-                  ImGui::GetStyle().Alpha = opacity;
-                }
-                ImGui::CustomCheckbox(xorstr_("AdGuard DNS"), &useAdGuardDns);
-                if (ImGui::Button(xorstr_("EXIT CHEAT"), ImVec2(-1, 0))) {
-                  main_thread_flag = false;
-                }
-                }
-            }
-            ImGui::EndChild();
-          ImGui::End();
+          ImGui::BeginChild("Content", ImVec2(0, 0), ImGuiChildFlags_None);
+          switch (g_currentTab) {
+            case 0: Pages::Auto(); break;
+            case 1: Pages::Esp(); break;
+            case 2: Pages::Visual(); break;
+            case 3: Pages::Room(); break;
+            case 4: Pages::Info(); break;
+            default: Pages::Settings(); break;
+          }
+          ImGui::EndChild();
         }
+        ImGui::End();
     }
   }
 

@@ -103,4 +103,5 @@
   X("gusionComboDelay", gusionComboDelay) \
   X("spellSpamMs", spellSpamMs) \
   X("uiFpsCap", uiFpsCap) \
-  X("skillAlertMs", skillAlertMs)
+  X("skillAlertMs", skillAlertMs) \
+  X("uiAccentPreset", uiAccentPreset)

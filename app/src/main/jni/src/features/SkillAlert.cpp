@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "imgui.h"
+#include "ui/Shell.h"
 #include "utils/xorstr.hpp"
 // Deklarasi saja: definisinya ada di Includes/GUI_Custom.cpp, path header-nya
 // tidak ada di LOCAL_C_INCLUDES jadi tidak boleh di-#include.
@@ -166,12 +167,17 @@ void Tick(int heroId, const SkillCdView &cd) {
 }
 
 void RenderSettings() {
-  ImGui::CustomCheckbox(xorstr_("Ulti Ready Alert"), &ultReadyAlert);
-  ImGui::CustomCheckbox(xorstr_("Retri Ready Alert"), &retriReadyAlert);
-  ImGui::CustomCheckbox(xorstr_("Ulti Cast Alert"), &ultCastAlert);
-  ImGui::CustomCheckbox(xorstr_("Retri Cast Alert"), &retriCastAlert);
-  ImGui::TextDisabled(xorstr_("Size mengikuti Alert Scale (tab VISUAL)"));
-  ImGui::SliderInt(xorstr_("Duration (ms)"), &skillAlertMs, 1000, 15000);
+  UI::Note(xorstr_("READY = skill siap, CAST = skill sudah ditekan musuh"));
+  UI::Toggle(xorstr_("Ulti Ready Alert"), &ultReadyAlert,
+             xorstr_("Kotak muncul saat ulti musuh siap"));
+  UI::Toggle(xorstr_("Retri Ready Alert"), &retriReadyAlert,
+             xorstr_("Kotak muncul saat retri musuh siap"));
+  UI::Toggle(xorstr_("Ulti Cast Alert"), &ultCastAlert,
+             xorstr_("Kotak muncul saat ulti musuh ditekan"));
+  UI::Toggle(xorstr_("Retri Cast Alert"), &retriCastAlert,
+             xorstr_("Kotak muncul saat retri musuh ditekan"));
+  UI::Note(xorstr_("Ukuran mengikuti slider Alert Scale di tab VISUAL"));
+  UI::SliderI(xorstr_("Duration"), &skillAlertMs, 1000, 15000, "ms");
 }
 
 void Draw(ImDrawList *draw) {
