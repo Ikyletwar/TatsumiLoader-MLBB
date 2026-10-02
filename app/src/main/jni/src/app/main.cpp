@@ -69,6 +69,7 @@ extern bool ultReadyAlert;
 extern bool retriReadyAlert;
 extern bool ultCastAlert;
 extern bool retriCastAlert;
+extern bool skillAlertIcon;
 extern int skillAlertMs;
 bool is_root_mode = true;
 bool main_thread_flag = true;

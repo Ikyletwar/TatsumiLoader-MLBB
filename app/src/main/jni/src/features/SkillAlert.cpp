@@ -9,6 +9,10 @@
 
 #include "imgui.h"
 #include "ui/Shell.h"
+// GetHeroTexture + cache tekstur. SENGAJA tidak include ui/DrawIconHero.h:
+// file itu menarik DrawSpellIcon yang butuh rantai header Spell loader.
+// Avatar digambar lokal (DrawAlertAvatar) dengan gaya yang sama.
+#include "utils/Decoder64.h"
 #include "utils/xorstr.hpp"
 // CustomCheckbox versi lama sudah tidak dipakai (RenderSettings sekarang
 // memakai UI::Toggle); deklarasi dihapus supaya tidak menyesatkan.
@@ -30,6 +34,7 @@ bool ultReadyAlert = true;
 bool retriReadyAlert = true;
 bool ultCastAlert = false;
 bool retriCastAlert = false;
+bool skillAlertIcon = true;
 int skillAlertMs = 4000;
 
 namespace {
@@ -64,6 +69,7 @@ struct AlertBox {
   std::string text;
   std::string sub;
   ImU32 color;
+  int heroId;  // untuk ikon avatar di Draw()
   Clock::time_point expiry;
   Clock::time_point born;
 };
@@ -89,7 +95,8 @@ uint64_t NowMs() {
 }
 
 // Ganti alert yang sama (teks identik) daripada menambah duplikat.
-void Push(const std::string &text, const std::string &sub, ImU32 color) {
+void Push(const std::string &text, const std::string &sub, ImU32 color,
+          int heroId) {
   const auto now = Clock::now();
   const auto ttl = std::chrono::milliseconds(
       skillAlertMs > 200 ? skillAlertMs : 200);
@@ -99,7 +106,7 @@ void Push(const std::string &text, const std::string &sub, ImU32 color) {
       return;
     }
   }
-  g_alerts.push_back({text, sub, color, now + ttl, now});
+  g_alerts.push_back({text, sub, color, heroId, now + ttl, now});
   while (g_alerts.size() > kMaxAlerts) g_alerts.erase(g_alerts.begin());
 }
 
@@ -114,10 +121,33 @@ void Step(uint8_t &state, uint8_t to, bool notifyReady, bool notifyCast,
     return;
   const std::string hero = HeroToString(heroId);
   if (to == kCooling && notifyCast) {
-    Push(std::string(label) + ": " + hero, castSub, castColor);
+    Push(std::string(label) + ": " + hero, castSub, castColor, heroId);
   } else if (to == kReady && notifyReady) {
-    Push(std::string(label) + ": " + hero, readySub, readyColor);
+    Push(std::string(label) + ": " + hero, readySub, readyColor, heroId);
   }
+}
+
+// Avatar lingkaran: versi ringkas DrawHeroIcon (tanpa HP arc/level/badge
+// yang tidak relevan untuk alert). Ring mengikuti warna alert supaya jenis
+// event kebaca sekilas. Fallback lingkaran abu + ID kalau tekstur belum ada.
+void DrawAlertAvatar(ImDrawList *draw, ImVec2 c, int heroId, float r,
+                     ImU32 ring) {
+  ImTextureID tex = GetHeroTexture(heroId);
+  draw->AddCircleFilled(c, r + 2.0f, IM_COL32(0, 0, 0, 180), 32);
+  if (tex) {
+    draw->AddCircleFilled(c, r, IM_COL32(30, 30, 30, 255), 32);
+    draw->AddImageRounded(tex, ImVec2(c.x - r, c.y - r),
+                          ImVec2(c.x + r, c.y + r), ImVec2(0, 0), ImVec2(1, 1),
+                          IM_COL32(255, 255, 255, 255), r);
+  } else {
+    draw->AddCircleFilled(c, r, IM_COL32(80, 80, 80, 255), 32);
+    char fb[8];
+    snprintf(fb, sizeof(fb), "%d", heroId);
+    ImVec2 ts = ImGui::CalcTextSize(fb);
+    draw->AddText(ImVec2(c.x - ts.x * 0.5f, c.y - ts.y * 0.5f),
+                  IM_COL32(255, 255, 255, 255), fb);
+  }
+  draw->AddCircle(c, r, ring, 32, 2.0f);
 }
 
 }  // namespace
@@ -173,6 +203,8 @@ void RenderSettings() {
              xorstr_("Kotak muncul saat ulti musuh ditekan"));
   UI::Toggle(xorstr_("Retri Cast Alert"), &retriCastAlert,
              xorstr_("Kotak muncul saat retri musuh ditekan"));
+  UI::Toggle(xorstr_("Show Hero Icon"), &skillAlertIcon,
+             xorstr_("Avatar hero di kiri kotak alert"));
   UI::Note(xorstr_("Ukuran mengikuti slider Alert Scale di tab VISUAL"));
   UI::SliderI(xorstr_("Duration"), &skillAlertMs, 1000, 15000, "ms");
 }
@@ -211,13 +243,23 @@ void Draw(ImDrawList *draw) {
     draw->AddRect(bMin, bMax, blink ? IM_COL32(255, 255, 255, 255) : a.color,
                   10.0f * s, 0, 2.5f * s);
 
+    // Avatar hero di kiri (gaya sama dengan ESP). Teks digeser ke kanan
+    // supaya tidak tertutup ikon; kalau ikon mati, teks tetap di tengah.
+    float textCx = centerX;
+    if (skillAlertIcon) {
+      const float iconR = 19.0f * s;
+      const ImVec2 iconC(bMin.x + 10.0f * s + iconR, y + boxH * 0.5f);
+      DrawAlertAvatar(draw, iconC, a.heroId, iconR, a.color);
+      textCx = centerX + (10.0f * s + iconR * 2.0f) * 0.5f;
+    }
+
     ImVec2 tSize = ImGui::CalcTextSize(a.text.c_str());
     draw->AddText(NULL, 19.0f * s,
-                  ImVec2(centerX - tSize.x * s * 0.5f, y + 8.0f * s),
+                  ImVec2(textCx - tSize.x * s * 0.5f, y + 8.0f * s),
                   IM_COL32(255, 255, 255, 255), a.text.c_str());
     ImVec2 sSize = ImGui::CalcTextSize(a.sub.c_str());
     draw->AddText(NULL, 13.0f * s,
-                  ImVec2(centerX - sSize.x * s * 0.5f, y + 30.0f * s),
+                  ImVec2(textCx - sSize.x * s * 0.5f, y + 30.0f * s),
                   IM_COL32(200, 200, 200, 255), a.sub.c_str());
 
     // Majukan baris, kalau tidak semua alert menumpuk di koordinat yang sama.

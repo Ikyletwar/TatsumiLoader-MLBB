@@ -47,6 +47,7 @@
   X("retriReadyAlert", retriReadyAlert) \
   X("ultCastAlert", ultCastAlert) \
   X("retriCastAlert", retriCastAlert) \
+  X("skillAlertIcon", skillAlertIcon) \
   X("retriNearbyRed", retriNearbyRed) \
   X("retriNearbyBlue", retriNearbyBlue) \
   X("retriNearbyLord", retriNearbyLord) \
