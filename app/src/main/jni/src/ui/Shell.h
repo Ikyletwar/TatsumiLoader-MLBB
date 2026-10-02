@@ -396,7 +396,10 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
   char id[96];
   MakeId(id, sizeof(id), label, (const void *)v);
   ImGui::InvisibleButton(id, ImVec2(w, hitH));
+  // WAJIB dibaca SEGERA setelah InvisibleButton: IsItemHovered/Active selalu
+  // merujuk ke item TERAKHIR, dan di bawah kita menggambar teks + rail.
   const bool hot = ImGui::IsItemHovered();
+  const bool active = ImGui::IsItemActive();
 
   // --- nilai: chip kanan ---
   char num[48];
@@ -431,12 +434,12 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
   t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
   dl->AddRectFilled(ImVec2(rx0, ry - railH * 0.5f), ImVec2(rx0 + (rx1 - rx0) * t, ry + railH * 0.5f),
                     Col(Base()), railH * 0.5f);
-  const float kr = FClamp(fh * 0.35f, 9.0f, 16.0f);
-  dl->AddCircleFilled(ImVec2(rx0 + (rx1 - rx0) * t, ry), kr, Col(Bright()));
+  const float kr = FClamp(fh * 0.35f, 9.0f, 16.0f) + (active ? 2.0f : (hot ? 1.0f : 0.0f));
+  dl->AddCircleFilled(ImVec2(rx0 + (rx1 - rx0) * t, ry), kr, Col(active || hot ? Bright() : Base()));
 
-  // --- interaksi ---
+  // --- interaksi (pakai status yang dicapture di atas, bukan query baru) ---
   bool changed = false;
-  if (ImGui::IsItemActive()) {
+  if (active) {
     const float mxPos = ImGui::GetIO().MousePos.x;
     float nt = (mxPos - rx0) / (rx1 - rx0);
     nt = nt < 0.0f ? 0.0f : (nt > 1.0f ? 1.0f : nt);
@@ -446,8 +449,6 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
       changed = true;
     }
   }
-  (void)hot;
-
   ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + hitH));
   return changed;
 }
