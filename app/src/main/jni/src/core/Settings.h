@@ -45,6 +45,8 @@
   X("drawObjectiveAlert", drawObjectiveAlert) \
   X("ultReadyAlert", ultReadyAlert) \
   X("retriReadyAlert", retriReadyAlert) \
+  X("ultCastAlert", ultCastAlert) \
+  X("retriCastAlert", retriCastAlert) \
   X("retriNearbyOnly", retriNearbyOnly) \
   X("drawMonsterMinimap", drawMonsterMinimap) \
   X("useAdGuardDns", useAdGuardDns)
@@ -100,4 +102,5 @@
   X("lingSwordID", lingSwordID)                                                 \
   X("gusionComboDelay", gusionComboDelay) \
   X("spellSpamMs", spellSpamMs) \
-  X("uiFpsCap", uiFpsCap)
+  X("uiFpsCap", uiFpsCap) \
+  X("skillAlertMs", skillAlertMs)

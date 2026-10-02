@@ -13,6 +13,7 @@ offset sekarang modular. Mau kembangin next time cukup sentuh modul kecil.
 | `src/config/Offsets.h` | semua offset (`inline size_t`, bukan const) + `kOffsetBundleVersion` | update offset di source |
 | `src/config/OffsetOverrides.h` | loader `/data/local/tmp/TatsumiLoader.offsets` | (tidak perlu diubah) |
 | `src/features/RoomInfo.*` | tabel lobby/dodge | fitur room |
+| `src/features/SkillAlert.*` | notifier ulti/retri musuh, 4 event | tambah event notif |
 | `src/utils/`, `src/Engine/` | touch, draw, memory | platform |
 
 ## Alur boot (paham dalam 10 detik)
@@ -56,10 +57,11 @@ Key valid = tabel di `OffsetOverrides.h`. Key salah tampil `unknown key`.
 
 ```sh
 export ANDROID_NDK_HOME=$HOME/Android/Sdk/ndk/27.0.12077973
-ndk-build -C app/src/main -j4 \
-  NDK_PROJECT_PATH=app/src/main \
-  NDK_APPLICATION_MK=app/src/main/jni/Application.mk \
-  NDK_APP_OUT=app/src/main/obj NDK_LIBS_OUT=app/src/main/libs
+cd app/src/main          # WAJIB: NDK cari jni/Android.mk relatif ke sini
+$ANDROID_NDK_HOME/ndk-build -j4 \
+  NDK_APPLICATION_MK=jni/Application.mk \
+  NDK_APP_OUT=obj NDK_LIBS_OUT=libs
+#Output: libs/arm64-v8a/TatsumiLoader
 ```
 
 ## Update 2026-09-30 (rapi + advance)
@@ -71,3 +73,34 @@ ndk-build -C app/src/main -j4 \
   `main.cpp` tinggal isi struct polos (tanpa urus curl/Telegram).
 - `src/features/TelegramReport.{h,cpp}` — transport Bot API (tidak berubah).
 - `main.cpp` 3769 -> ~3600 baris (save/load 200+ baris jadi ~30 baris).
+
+## Update 2026-10-02 (notifier ulti/retri modular + 2 bug fix)
+
+- `src/features/SkillAlert.{h,cpp}` — notifier ulti/retri pindah dari `main.cpp`
+  ke modul sendiri. `main.cpp` cuma 4 titik kontak: `Tick()` (dari `DrawMonster`),
+  `RenderSettings()` (tab ESP), `Draw()`, `Reset()` (dari `AttachToGame`).
+- **Event baru: CAST.** Sebelumnya cuma READY (CD habis -> siap). Sekarang ada
+  4 event: `ULTI READY` / `ULTI DITERIAK` / `RETRI READY` / `RETRI DITERIAK`.
+  Masing-masing punya toggle sendiri di tab ESP > `ULTI & RETRI ALERT`.
+- **Bug 1 fix — alert menumpuk.** `DrawSkillAlerts` hitung `y` sekali di luar
+  loop lalu tidak pernah di-increment, jadi semua alert gambar di koordinat
+  sama dan hanya yang terakhir kelihatan. Sekarang `y += boxH + gap`.
+- **Bug 2 fix — state bocor.** `g_ultSeenCd`/`g_retriSeenCd` tidak pernah
+  di-reset. Hero mati (di-skip loop) lalu respawn dengan CD=0 memicu alert
+  "READY" palsu. Sekarang ada `lastSeenMs` per hero: hilang >3 detik = state
+  dibuang tanpa menembak, >60 detik = di-prune.
+- **Tidak ada slider size baru.** `Alert_Scale` (tab VISUAL) sudah dipakai
+  bareng oleh `DrawGlobalWarning` (Lord/Turtle) dan `SkillAlert::Draw`, jadi
+  satu slider itu sudah mengatur keduanya. Slider `Duration (ms)` baru ada
+  di tab ESP karena skalanya beda (text vs kotak Lord/Turtle).
+- Setting baru: `ultCastAlert`, `retriCastAlert` (bool, default off),
+  `skillAlertMs` (int, default 4000 — tadinya hardcode).
+
+### Tambah event notif baru (3 langkah)
+
+1. Tambah field `uint8_t` di `HeroWatch` (batas 2 bit = 4 tahap: unknown /
+   siap / cooldown).
+2. Panggil `Step(state, now, notifyReady, notifyCast, label, heroId, ...)`.
+   `unknown -> *` tidak pernah menembak, jadi anti false-positive gratis.
+3. Tambah 1 baris `X("key", var)` di `core/Settings.h`. Warna, gambar, dan
+   persist ikut otomatis.

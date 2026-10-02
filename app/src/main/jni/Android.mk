@@ -38,6 +38,7 @@ LOCAL_SRC_FILES := \
     src/app/main.cpp \
     src/core/BootFlow.cpp \
     src/features/RoomInfo.cpp \
+    src/features/SkillAlert.cpp \
     src/Android_draw/draw.cpp \
     src/Android_touch/TouchHelperA.cpp \
     src/ImGui/imgui.cpp \
