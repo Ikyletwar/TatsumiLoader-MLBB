@@ -59,7 +59,9 @@ inline ImVec4 Neutral(float k, float alpha = 1.0f) {
   const float lum = (g_accent.r * 0.30f + g_accent.g * 0.59f + g_accent.b * 0.11f) / 255.0f;
   float v = k;
   if (v > 1.0f) v = lum + (1.0f - lum) * (1.0f - 1.0f / k);
-  return ImVec4(v, v, v * 1.02f, alpha);
+  if (v > 1.0f) v = 1.0f;
+  const float b = v * 1.02f > 1.0f ? 1.0f : v * 1.02f;
+  return ImVec4(v, v, b, alpha);
 }
 
 // Base = warna aksen untuk elemen interaktif (slider, toggle aktif).
@@ -126,7 +128,6 @@ inline void ApplyTheme() {
   c[ImGuiCol_ResizeGripActive] = Base();
   c[ImGuiCol_SliderGrab] = Base();
   c[ImGuiCol_SliderGrabActive] = Bright();
-  c[ImGuiCol_ScrollbarGrab] = Neutral(0.30f, 0.90f);
   c[ImGuiCol_Tab] = ImVec4(0.12f, 0.12f, 0.14f, 1.0f);
   c[ImGuiCol_TabHovered] = ImVec4(0.22f, 0.22f, 0.25f, 1.0f);
   c[ImGuiCol_TabActive] = ImVec4(0.28f, 0.28f, 0.32f, 1.0f);

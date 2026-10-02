@@ -34,8 +34,10 @@ inline void MakeId(char *buf, size_t n, const char *label, const void *owner) {
   snprintf(buf, n, "##%s@%p", label ? label : "x", owner);
 }
 
-// Hitung tinggi font saat ini (sudah termasuk FontGlobalScale).
-inline float Fh() { return ImGui::GetFontSize() * ImGui::GetIO().FontGlobalScale; }
+// Tinggi 1 baris teks. GetFontSize() SUDAH termasuk FontGlobalScale,
+// jadi jangan dikali lagi (dulu sempat double-scale -> semua widget
+// kebesaran ~15-40% di HP).
+inline float Fh() { return ImGui::GetFontSize(); }
 
 // ------------------------------------------------------------------
 // Ikon vektor untuk sidebar (tanpa font icon -> nol dependensi)
@@ -134,7 +136,6 @@ inline bool NavItem(int kind, const char *label, bool active) {
   DrawNavIcon(kind, ImVec2(p.x + 22.0f, p.y + h * 0.5f), 8.5f, icol);
 
   const float fh = Fh();
-  const ImVec2 ts = ImGui::CalcTextSize(label);
   ImGui::SetCursorScreenPos(ImVec2(p.x + 42.0f, p.y + (h - fh) * 0.5f));
   ImGui::TextColored(active ? Bright() : Neutral(0.82f), "%s", label);
 
@@ -203,7 +204,6 @@ inline void Sidebar(int *tab, float width, const char *version, bool attached) {
 // Header konten: judul besar + subjudul
 // ------------------------------------------------------------------
 inline void HeaderBar(const char *title, const char *sub) {
-  const float w = ImGui::GetContentRegionAvail().x;
   const float fh = Fh();
   ImVec2 p = ImGui::GetCursorScreenPos();
 
@@ -221,7 +221,6 @@ inline void HeaderBar(const char *title, const char *sub) {
     ImGui::TextDisabled("%s", sub);
     y += fh + 2.0f;
   }
-  (void)w;
   ImGui::SetCursorScreenPos(ImVec2(p.x, y + 4.0f));
 }
 
@@ -233,7 +232,9 @@ inline void HeaderBar(const char *title, const char *sub) {
 // page 0..5 = halaman utama (AUTO/ESP/VISUAL/ROOM/INFO/SETTINGS).
 // page 6..7 = slot ekstra untuk sub-kartu (mis. Calibration di dalam MINIMAP),
 // supaya sub-kartu tidak merebut slot accordion kartu induknya.
-inline int g_openCard[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+// Slot 6..7 default TERTUTUP (-1) supaya sub-kartu (mis. Calibration,
+// dulu TreeNode tertutup) tidak tiba-tiba terbuka.
+inline int g_openCard[8] = {0, 0, 0, 0, 0, 0, -1, -1};
 
 inline bool Section(const char *title, const char *hint, int page, int idx) {
   if (page < 0 || page > 7) page = 0;
@@ -425,7 +426,10 @@ inline bool ActionBtn(const char *label, bool primary = false) {
 
   ImVec2 p = ImGui::GetCursorScreenPos();
   char id[96];
-  MakeId(id, sizeof(id), label, (const void *)label);
+  // ID berbasis ISI label (bukan pointer). xorstr_ mengembalikan pointer ke
+  // temporary stack yang alamatnya bisa beda antar frame, jadi pointer tidak
+  // boleh jadi bagian ID. Syarat: tiap label tombol harus unik.
+  snprintf(id, sizeof(id), "##btn_%s", label ? label : "x");
   ImGui::InvisibleButton(id, ImVec2(w, h));
   const bool pressed = ImGui::IsItemClicked();
   const bool hot = ImGui::IsItemHovered();

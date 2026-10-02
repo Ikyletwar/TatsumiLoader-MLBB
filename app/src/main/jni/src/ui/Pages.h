@@ -77,7 +77,8 @@ inline void Auto() {
       if (UI::ActionBtn(xorstr_("RESET SKILL 2 POSITION"))) {
         lingSkill2X = abs_ScreenX * 0.85f;
         lingSkill2Y = abs_ScreenY * 0.75f;
-      }    }
+      }
+    }
     UI::EndSection();
   }
 
