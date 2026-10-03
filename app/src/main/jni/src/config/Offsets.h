@@ -58,9 +58,12 @@ template <typename TKey, typename TValue> struct monoDictionary {
 
 template <typename T>
 inline std::vector<T> get_mono_list_vector(monoList array) {
-    std::vector<T> output(array.pSize);
-    if (array.monoArray == 0 || array.pSize <= 0)
-        return output;
+    // BUG-FIX: pSize datang dari memori game. Alokasi SEBELUM validasi =
+    // crash/OOM saat corrupt: negatif jadi size_t raksasa (length_error/
+    // bad_alloc), sangat besar = hang + OOM. Fail-closed, pulih frame berikut.
+    if (array.monoArray == 0 || array.pSize <= 0 || array.pSize > 2048)
+        return std::vector<T>();
+    std::vector<T> output((size_t)array.pSize);
 
     auto address = array.monoArray + offsetof(monoArray, m_Items);
     for (int i = 0; i < array.pSize; i++) {
@@ -72,9 +75,10 @@ inline std::vector<T> get_mono_list_vector(monoList array) {
 template <typename TKey, typename TValue>
 inline std::vector<monoDictionaryEntry<TKey, TValue>>
 get_mono_dictionary_vector(monoDictionary<TKey, TValue> dict) {
-    std::vector<monoDictionaryEntry<TKey, TValue>> output(dict.count);
-    if (dict.arrayEntries == 0 || dict.count <= 0)
-        return output;
+    // BUG-FIX: sama seperti list di atas — count corrupt = alokasi raksasa.
+    if (dict.arrayEntries == 0 || dict.count <= 0 || dict.count > 2048)
+        return std::vector<monoDictionaryEntry<TKey, TValue>>();
+    std::vector<monoDictionaryEntry<TKey, TValue>> output((size_t)dict.count);
 
     auto address = dict.arrayEntries + offsetof(monoArray, m_Items);
     for (int i = 0; i < dict.count; i++) {

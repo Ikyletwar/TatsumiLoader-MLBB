@@ -226,7 +226,14 @@ void AttachToGame() {
       is_attached = true;
       SkillAlert::Reset(); // match baru: buang state notifier biar ga alert palsu
     }
+    return;
   }
+  // BUG-FIX: gagal attach (mis. RE-SCAN saat game mati) wajib membersihkan
+  // state basi. Kalau tidak, is_attached/libbase lama bertahan dan frame
+  // berikut membaca memori game yang sudah mati = crash.
+  is_attached = false;
+  libbase = 0;
+  SkillAlert::Reset();
 }
 std::string fshy(uintptr_t address) {
   if (!address)
@@ -262,8 +269,11 @@ struct String {
     wchar_t buffer[1];
     const char *CString() const {
       static char temp[256];
-      wcstombs(temp, buffer, length);
-      temp[length] = '\0';
+      // BUG-FIX: length dari memori game. Tanpa bound = stack overflow
+      // saat length > 255.
+      int n = length < 0 ? 0 : (length > 255 ? 255 : length);
+      wcstombs(temp, buffer, (size_t)n);
+      temp[n] = '\0';
       return temp;
     }
 };
@@ -326,7 +336,6 @@ void Touch_Tap(int x, int y) {
   Touch_Down((float)x, (float)y);
   Touch_Up();
 }
-bool lastRetriTriggered[20] = {false};
 bool autoRetribution = false;
 bool AutoRetributionRed = true;
 bool AutoRetributionBlue = true;
@@ -1075,8 +1084,11 @@ void ProcessAutoRetribution(uintptr_t selfp, long a32, long monsterListPtr,
   g_retriDbgLvl = myLevel;
   // Rumus patch 2.1.88+ (konfirmasi 2.2.16): 750 + 150 x Level + margin awal.
   int retriDmg = CalculateRetriDamage(myLevel) + (int)retriEarlyMargin;
-  Vector3 myPos;
-  vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos));
+  // BUG-FIX: myPos wajib ter-init + hasil baca dicek. Posisi sampah =
+  // jarak sampah = target salah (tap tetap digerbangi verifikasi HP).
+  Vector3 myPos{};
+  if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos)))
+    return;
 
   float closestDist = 99999.0f;
   uintptr_t closestMonsterAddr = 0;
@@ -1133,8 +1145,26 @@ void ProcessAutoRetribution(uintptr_t selfp, long a32, long monsterListPtr,
       // Verifikasi ulang HP tepat sebelum tap (anti salah baca 1 frame).
       int realHP = Read<int>(closestMonsterAddr + OFF_SE(Hp));
       if (realHP > 0 && realHP <= retriDmg) {
+        // BUG-FIX: retriSpamMs dulu tidak pernah dipakai -> tap flood tiap
+        // frame selama kondisi terpenuhi. Target BARU selalu boleh tap
+        // (kesempatan baru); target SAMA menghormati interval.
+        static auto lastRetriTap = std::chrono::steady_clock::now() -
+                                   std::chrono::hours(1);
+        static uintptr_t lastRetriTarget = 0;
+        const auto nowTap = std::chrono::steady_clock::now();
+        const long interval =
+            retriSpamMs < 0 ? 0 : (retriSpamMs > 5000 ? 5000 : retriSpamMs);
+        if (closestMonsterAddr == lastRetriTarget) {
+          const long sinceMs =
+              std::chrono::duration_cast<std::chrono::milliseconds>(nowTap -
+                                                                    lastRetriTap)
+                  .count();
+          if (sinceMs < interval) return;
+        }
         Touch_Tap((int)retriTouchX, (int)retriTouchY);
         if (retriDoubleTap) Touch_Tap((int)retriTouchX, (int)retriTouchY);
+        lastRetriTap = nowTap;
+        lastRetriTarget = closestMonsterAddr;
       }
     }
   }
@@ -1437,6 +1467,11 @@ void DrawMonster(ImDrawList *Draw) {
           OFF_BM(ListArrayOffset);
   uint stop_monster =
           Read<uint>(ReadPtr(a32 + OFF_BM(ShowMonsters)) + OFF_BM(ListCountOffset));
+  // BUG-FIX: count dari memori game. Tanpa validasi, count corrupt =
+  // iterasi miliaran entri (hang) + baca OOB (crash). Batas player samakan
+  // dengan FastAutoSpell (40); monster clamp longgar 128.
+  if (stop_player > 40) stop_player = 0;
+  if (stop_monster > 128) stop_monster = 128;
   ProcessAutoRetribution(selfp, a32, monster, stop_monster);
 
   for (int i = 0; i < stop_player; i++) {
@@ -3144,18 +3179,23 @@ inline void LoadTatsumiSettings() {
       } catch (...) {
       }
     }
-    if (!getVal(xorstr_("predictionLineColor")).empty()) {
+    // BUG-FIX: parse ke temp + verifikasi separator. cfg korup sebelumnya
+    // menulis sebagian (mis. x valid, sisanya basi) -> warna aneh permanen.
+    {
       std::istringstream iss(getVal(xorstr_("predictionLineColor")));
-      char c;
-      iss >> predictionLineColor.Value.x >> c >> predictionLineColor.Value.y >>
-          c >> predictionLineColor.Value.z >> c >> predictionLineColor.Value.w;
+      char c1, c2, c3;
+      ImVec4 tmp = predictionLineColor.Value;
+      if ((iss >> tmp.x >> c1 >> tmp.y >> c2 >> tmp.z >> c3 >> tmp.w) &&
+          c1 == ',' && c2 == ',' && c3 == ',')
+        predictionLineColor.Value = tmp;
     }
-    if (!getVal(xorstr_("predictionCircleColor")).empty()) {
+    {
       std::istringstream iss(getVal(xorstr_("predictionCircleColor")));
-      char c;
-      iss >> predictionCircleColor.Value.x >> c >>
-          predictionCircleColor.Value.y >> c >> predictionCircleColor.Value.z >>
-          c >> predictionCircleColor.Value.w;
+      char c1, c2, c3;
+      ImVec4 tmp = predictionCircleColor.Value;
+      if ((iss >> tmp.x >> c1 >> tmp.y >> c2 >> tmp.z >> c3 >> tmp.w) &&
+          c1 == ',' && c2 == ',' && c3 == ',')
+        predictionCircleColor.Value = tmp;
     }
 #undef LOAD_BOOL
 #undef LOAD_FLOAT
@@ -3231,6 +3271,17 @@ void Layout_tick_UI() {
 
   abs_ScreenX = (int)io.DisplaySize.x;
   abs_ScreenY = (int)io.DisplaySize.y;
+
+  // BUG-FIX: joystick ter-init (0,0) di startup karena abs masih 0 saat itu.
+  // Koreksi malas di sini setiap frame sampai abs valid + user belum atur.
+  // (0,0) = pojok kiri atas; tanpa ini joystick nangkring di pojok saat
+  // fresh install sampai user menekan RESET.
+  if (abs_ScreenX > 0 && abs_ScreenY > 0) {
+    if (AutoAim::joyCenterX == 0.0f)
+      AutoAim::joyCenterX = abs_ScreenX * 0.85f;
+    if (AutoAim::joyCenterY == 0.0f)
+      AutoAim::joyCenterY = abs_ScreenY * 0.75f;
+  }
 
   if (MinimapIcon) {
     DrawMinimapESP(ImGui::GetForegroundDrawList());
@@ -3468,6 +3519,9 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
     AutoAim::joyCenterX = ::abs_ScreenX * 0.85f;
     AutoAim::joyCenterY = ::abs_ScreenY * 0.75f;
   }
+  // BUG-FIX: setting dibaca SEBELUM thread worker jalan. Dulu Load sesudah
+  // spawn -> worker sempat memakai default beberapa frame pertama (race).
+  LoadTatsumiSettings();
   pthread_t pid_tid, worker_tid;
   pthread_create(&pid_tid, nullptr, pid_monitor, nullptr);
   pthread_create(&worker_tid, nullptr, game_worker, nullptr);
@@ -3478,7 +3532,6 @@ __attribute__((visibility("default"))) int main(int argc, char *argv[]) {
   g_RoomInfoThread = new std::thread(RoomInfoReaderThread);
   struct timespec lastTime;
   clock_gettime(CLOCK_MONOTONIC, &lastTime);
-  LoadTatsumiSettings();
   struct timespec lastFrame = {0, 0};
   while (main_thread_flag) {
     struct timespec nowTs;

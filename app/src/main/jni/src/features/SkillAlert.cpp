@@ -231,6 +231,13 @@ void Draw(ImDrawList *draw) {
   float y = centerY + 35.0f * s + 14.0f;  // di bawah box objective
   const size_t n = std::min<size_t>(g_alerts.size(), kMaxAlerts);
 
+  // BUG-FIX: CalcTextSize mengembalikan lebar dalam satuan font AKTIF,
+  // sedangkan AddText me-render pada 19*s / 13*s. Tanpa faktor koreksi ini
+  // teks tidak pernah center (makin parah saat UI scale besar).
+  const float baseFh = ImGui::GetFontSize() > 0.0f ? ImGui::GetFontSize() : 13.0f;
+  const float titleK = (19.0f * s) / baseFh;
+  const float subK = (13.0f * s) / baseFh;
+
   for (size_t i = 0; i < n; i++) {
     const AlertBox &a = g_alerts[g_alerts.size() - n + i];
     ImVec2 bMin(centerX - boxW * 0.5f, y), bMax(centerX + boxW * 0.5f, y + boxH);
@@ -255,11 +262,11 @@ void Draw(ImDrawList *draw) {
 
     ImVec2 tSize = ImGui::CalcTextSize(a.text.c_str());
     draw->AddText(NULL, 19.0f * s,
-                  ImVec2(textCx - tSize.x * s * 0.5f, y + 8.0f * s),
+                  ImVec2(textCx - tSize.x * titleK * 0.5f, y + 8.0f * s),
                   IM_COL32(255, 255, 255, 255), a.text.c_str());
     ImVec2 sSize = ImGui::CalcTextSize(a.sub.c_str());
     draw->AddText(NULL, 13.0f * s,
-                  ImVec2(textCx - sSize.x * s * 0.5f, y + 30.0f * s),
+                  ImVec2(textCx - sSize.x * subK * 0.5f, y + 30.0f * s),
                   IM_COL32(200, 200, 200, 255), a.sub.c_str());
 
     // Majukan baris, kalau tidak semua alert menumpuk di koordinat yang sama.

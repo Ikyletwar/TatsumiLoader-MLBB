@@ -92,7 +92,6 @@ inline void ApplyTheme() {
   style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
   style.WindowBorderSize = 1.0f;
   style.ChildBorderSize = 0.0f;
-  style.ScrollbarRounding = 8.0f;
 
   ImVec4 *c = style.Colors;
   c[ImGuiCol_Text] = Neutral(0.92f);

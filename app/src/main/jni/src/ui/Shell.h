@@ -299,11 +299,12 @@ inline bool Section(const char *title, const char *hint, int page, int idx) {
   ImGui::SetCursorScreenPos(ImVec2(a.x + 14.0f, p.y + (h - fh) * 0.5f));
   ImGui::TextColored(open ? Bright() : Neutral(0.86f), "%s", title);
 
-  // hint di kanan judul, kalau masih muat
+  // hint di kanan judul, kalau masih muat (sisakan ruang chevron 26px)
   if (hint && hint[0]) {
     const float tw = ImGui::CalcTextSize(title).x;
     const float hx = a.x + 14.0f + tw + 12.0f;
-    if (hx + 60.0f < b.x) {
+    const float hintW = ImGui::CalcTextSize(hint).x;
+    if (hx + hintW < b.x - 26.0f) {
       ImGui::SetCursorScreenPos(ImVec2(hx, p.y + (h - fh) * 0.5f));
       ImGui::TextDisabled("%s", hint);
     }
@@ -385,6 +386,7 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
   // stof("nan") tidak throw tapi menghasilkan NaN -> vertex NaN.
   if (!std::isfinite(*v)) *v = mn;
   const float w = ImGui::GetContentRegionAvail().x;
+  if (!(w > 0.0f)) return false;  // child collapsed/sempit: jangan bagi nol
   const float fh = Fh();
   const float chipH = fh + 8.0f;
   // Rail + knob ikut skala font; area sentuh rail minimal 24px buat jempol.
@@ -444,7 +446,7 @@ inline bool SliderF(const char *label, float *v, float mn, float mx,
     float nt = (mxPos - rx0) / (rx1 - rx0);
     nt = nt < 0.0f ? 0.0f : (nt > 1.0f ? 1.0f : nt);
     const float nv = mn + nt * (mx - mn);
-    if (nv != *v) {
+    if (std::isfinite(nv) && nv != *v) {
       *v = nv;
       changed = true;
     }
