@@ -17,6 +17,7 @@
 #include <cstring>
 #include <ctime>
 #include <dirent.h>
+#include <errno.h>
 #include <exception>
 #include <fcntl.h>
 #include <signal.h>
@@ -234,6 +235,57 @@ void AttachToGame() {
   is_attached = false;
   libbase = 0;
   SkillAlert::Reset();
+}
+
+// Reset guest: hapus playerprefs.xml + paksa relog (kill + relaunch).
+// Path dari riset user:
+//   /data/data/<pkg>/shared_prefs/<pkg>.v2.playerprefs.xml
+// Jalan sebagai root (is_root_mode). Return true bila file hilang + game
+// di-relaunch. Guest yang belum di-bind hilang permanen (by design).
+bool ResetGuestAccount() {
+  char path[256];
+  snprintf(path, sizeof(path), "/data/data/%s/shared_prefs/%s.v2.playerprefs.xml",
+           g_package_name.c_str(), g_package_name.c_str());
+  printf("Reset guest: hapus %s\n", path);
+  fflush(stdout);
+
+  if (remove(path) != 0 && errno != ENOENT) {
+    printf("Reset guest GAGAL hapus file (errno=%d). Butuh root.\n", errno);
+    fflush(stdout);
+    return false;
+  }
+  struct stat st;
+  if (stat(path, &st) == 0) {
+    printf("Reset guest GAGAL: file masih ada.\n");
+    fflush(stdout);
+    return false;
+  }
+
+  // Kill proses game semua varian biar sesi lama mati total.
+  static const char *kProcs[] = {
+      "com.mobile.legends:UnityKillsMe",
+      "com.mobile.legends.usa:UnityKillsMe",
+      "com.vng.mlbb:UnityKillsMe",
+      "com.mobile.legends",
+      "com.mobile.legends.usa",
+      "com.vng.mlbb",
+  };
+  for (size_t i = 0; i < sizeof(kProcs) / sizeof(kProcs[0]); i++) {
+    pid_t id = pidof(kProcs[i]);
+    if (id > 0) kill(id, SIGKILL);
+  }
+
+  // Relaunch otomatis (tanpa perlu tahu launch activity).
+  {
+    char cmd[256];
+    snprintf(cmd, sizeof(cmd),
+             "monkey -p %s -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 &",
+             g_package_name.c_str());
+    system(cmd);
+  }
+  printf("Reset guest OK, MLBB di-relaunch. Cek UserID baru di profil.\n");
+  fflush(stdout);
+  return true;
 }
 std::string fshy(uintptr_t address) {
   if (!address)

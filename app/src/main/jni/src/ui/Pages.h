@@ -333,6 +333,30 @@ inline void Settings() {
     ImGui::Spacing();
     if (UI::ActionBtn(xorstr_("SAVE SETTINGS"))) SaveTatsumiSettings();
     if (UI::ActionBtn(xorstr_("LOAD SETTINGS"))) LoadTatsumiSettings();
+    // Reset guest = destruktif (guest hilang permanen): 2-tap confirm.
+    // Tap 1 = armed 5 detik, tap 2 = eksekusi hapus XML + relog MLBB.
+    {
+      static bool guestArmed = false;
+      static std::chrono::steady_clock::time_point guestArmTp =
+          std::chrono::steady_clock::now() - std::chrono::hours(1);
+      const auto nowTap = std::chrono::steady_clock::now();
+      if (guestArmed &&
+          std::chrono::duration_cast<std::chrono::seconds>(nowTap - guestArmTp)
+                  .count() > 5)
+        guestArmed = false;  // arm kedaluwarsa
+      if (UI::ActionBtn(guestArmed ? xorstr_("TAP LAGI: HAPUS GUEST")
+                                   : xorstr_("RESET GUEST"))) {
+        if (guestArmed) {
+          guestArmed = false;
+          ResetGuestAccount();
+        } else {
+          guestArmed = true;
+          guestArmTp = nowTap;
+        }
+      }
+      if (guestArmed)
+        UI::Note(xorstr_("Hapus playerprefs.xml + relog MLBB. Guest hilang permanen."));
+    }
     UI::EndSection();
   }
 
