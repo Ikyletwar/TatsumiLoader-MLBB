@@ -369,8 +369,8 @@ float retriNearbyRangeTurtle = 12.0f;
 float retriNearbyRangeCrab = 12.0f;
 float retriNearbyRangeLito = 12.0f;
 bool autoSpellExecute = false;
-float spellExecPct = 12.0f;
 float spellRange = 5.0f;
+float spellEarlyMargin = 80.0f;  // kompensasi regen/tick delay, cerminan retri
 float spellX = 1700.0f;
 float spellY = 850.0f;
 int spellSpamMs = 1000;
@@ -1015,6 +1015,13 @@ int CalculateRetriDamage(int m_Level) {
   return 750 + (150 * m_Level);
 }
 
+// Patch 2.2.16: 100 + 10 x Level + 13% x HP hilang target, true damage,
+// abaikan shield. Kill via Execute = refund 40% cooldown spell.
+inline int CalculateExecuteDamage(int m_Level, int targetLostHp) {
+  if (targetLostHp < 0) targetLostHp = 0;
+  return 100 + (10 * m_Level) + (int)(0.13f * (float)targetLostHp);
+}
+
 extern uintptr_t Oneself;
 extern uintptr_t Oneself;
 // Indeks tipe monster untuk nearby-per-monster: 0=Red 1=Blue 2=Lord
@@ -1186,6 +1193,8 @@ void FastAutoSpell() {
   if (playerCount <= 0 || playerCount > 40) return;
   Vector3 myPos;
   if (!vm_readv(selfp + OFF_SE(vCachePosition), &myPos, sizeof(myPos))) return;
+  int myLevel = Read<int>(selfp + OFF_SE(Level));
+  if (myLevel <= 0 || myLevel > 30) myLevel = 12;  // fallback: offset Level basi
   static auto lastSpellTap = std::chrono::steady_clock::now() - std::chrono::milliseconds(5000);
   auto now = std::chrono::steady_clock::now();
   long sinceTap = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastSpellTap).count();
@@ -1198,11 +1207,17 @@ void FastAutoSpell() {
     int hp = Read<int>(Objaddr + OFF_SE(Hp));
     int maxHp = Read<int>(Objaddr + OFF_SE(HpMax));
     if (hp <= 0 || maxHp <= 0) continue;
-    float pct = 100.0f * (float)hp / (float)maxHp;
-    if (pct > spellExecPct) continue;
+    // Rumus execute (ganti threshold % yang sering miss pada HP besar):
+    // kill <=> hp <= 100 + 10*level + 13%*lostHp + margin.
+    const int execDmg =
+        CalculateExecuteDamage(myLevel, maxHp - hp) + (int)spellEarlyMargin;
+    if (hp > execDmg) continue;
     Vector3 epos;
     if (!vm_readv(Objaddr + OFF_SE(vCachePosition), &epos, sizeof(epos))) continue;
     if (Vector3::Distance(myPos, epos) > spellRange) continue;
+    // Verifikasi ulang HP tepat sebelum tap (cerminan jalur retri).
+    const int realHp = Read<int>(Objaddr + OFF_SE(Hp));
+    if (realHp <= 0 || realHp > execDmg) continue;
     Touch_Tap((int)spellX, (int)spellY);
     Touch_Tap((int)spellX, (int)spellY);
     lastSpellTap = now;

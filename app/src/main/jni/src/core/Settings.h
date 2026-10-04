@@ -89,8 +89,8 @@
   X("lingDashDelay", lingDashDelay)                                             \
   X("lingSkill2X", lingSkill2X)                                                 \
   X("lingSkill2Y", lingSkill2Y) \
-  X("spellExecPct", spellExecPct) \
   X("spellRange", spellRange) \
+  X("spellEarlyMargin", spellEarlyMargin) \
   X("spellX", spellX) \
   X("spellY", spellY) \
   X("objectiveLowPct", objectiveLowPct) \

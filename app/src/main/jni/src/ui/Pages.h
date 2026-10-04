@@ -82,7 +82,7 @@ inline void Auto() {
     UI::Toggle(xorstr_("Enable Auto Execute"), &autoSpellExecute,
                xorstr_("Lempar skill saat HP musuh di bawah ambang"));
     if (autoSpellExecute) {
-      UI::SliderF(xorstr_("Execute HP %"), &spellExecPct, 1.0f, 40.0f, "%");
+      UI::SliderF(xorstr_("Early Margin"), &spellEarlyMargin, 0.0f, 300.0f, "dmg", "%.0f");
       UI::SliderF(xorstr_("Execute Range"), &spellRange, 1.0f, 10.0f, "m");
       UI::SliderF(xorstr_("Spell X"), &spellX, 0.0f, 3000.0f, "px", "%.0f");
       UI::SliderF(xorstr_("Spell Y"), &spellY, 0.0f, 1500.0f, "px", "%.0f");
