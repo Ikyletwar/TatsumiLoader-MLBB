@@ -22,7 +22,7 @@ inline const char *kUnitySuffix = ":UnityKillsMe";
 constexpr int kBootWaitSeconds = 120;
 
 // Versi loader (tampil di INFO + laporan Telegram + release). Konvensi semver.
-inline const char *kTatsumiVersion = "2.5.0";
+inline const char *kTatsumiVersion = "2.5.1";
 
 // Path file (satu tempat, gampang ganti).
 inline const char *kSettingsCfg = "/data/local/tmp/TatsumiLoader.cfg";

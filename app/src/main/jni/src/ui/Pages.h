@@ -333,29 +333,33 @@ inline void Settings() {
     ImGui::Spacing();
     if (UI::ActionBtn(xorstr_("SAVE SETTINGS"))) SaveTatsumiSettings();
     if (UI::ActionBtn(xorstr_("LOAD SETTINGS"))) LoadTatsumiSettings();
-    // Reset guest = destruktif (guest hilang permanen): 2-tap confirm.
-    // Tap 1 = armed 5 detik, tap 2 = eksekusi hapus XML + relog MLBB.
-    {
-      static bool guestArmed = false;
-      static std::chrono::steady_clock::time_point guestArmTp =
-          std::chrono::steady_clock::now() - std::chrono::hours(1);
-      const auto nowTap = std::chrono::steady_clock::now();
-      if (guestArmed &&
-          std::chrono::duration_cast<std::chrono::seconds>(nowTap - guestArmTp)
-                  .count() > 5)
-        guestArmed = false;  // arm kedaluwarsa
-      if (UI::ActionBtn(guestArmed ? xorstr_("TAP LAGI: HAPUS GUEST")
-                                   : xorstr_("RESET GUEST"))) {
-        if (guestArmed) {
-          guestArmed = false;
+    // Reset guest = destruktif: wajib lewat modal konfirmasi (anti salah tap).
+    if (UI::ActionBtn(xorstr_("RESET GUEST"))) ImGui::OpenPopup("##guest_confirm");
+    if (ImGui::BeginPopupModal("##guest_confirm", nullptr,
+                               ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "%s",
+                         xorstr_("HAPUS AKUN GUEST?"));
+      ImGui::Spacing();
+      ImGui::TextWrapped(
+          "%s",
+          xorstr_("Menghapus playerprefs.xml dan me-relog MLBB. Guest yang belum di-bind hilang permanen dan tidak bisa dikembalikan."));
+      ImGui::Spacing();
+      ImGui::Spacing();
+      {
+        const float bw = (ImGui::GetContentRegionAvail().x - 10.0f) * 0.5f;
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.55f, 0.14f, 0.14f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.70f, 0.18f, 0.18f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.42f, 0.10f, 0.10f, 1.0f));
+        if (ImGui::Button(xorstr_("YA, HAPUS"), ImVec2(bw, 44))) {
+          ImGui::CloseCurrentPopup();
           ResetGuestAccount();
-        } else {
-          guestArmed = true;
-          guestArmTp = nowTap;
         }
+        ImGui::PopStyleColor(3);
+        ImGui::SameLine();
+        if (ImGui::Button(xorstr_("BATAL"), ImVec2(bw, 44)))
+          ImGui::CloseCurrentPopup();
       }
-      if (guestArmed)
-        UI::Note(xorstr_("Hapus playerprefs.xml + relog MLBB. Guest hilang permanen."));
+      ImGui::EndPopup();
     }
     UI::EndSection();
   }
